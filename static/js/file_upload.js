@@ -9,6 +9,8 @@ function mapFromFile(data, type, accessible) {
 		parsed = parseIbtracs(data);
 	} else if (type === "rsmc") {
 		parsed = parseRsmc(data);
+	} else if (type === "storms") {
+		parsed = parseStorms(data)
 	} else {
 		return;
 	}
