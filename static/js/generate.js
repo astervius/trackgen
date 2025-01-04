@@ -16,57 +16,134 @@ document.querySelector("#close").addEventListener("click", () => {
     document.querySelector("#image-container").classList.add("hidden");
 });
 
-let loaded = false;
-const BLUE_MARBLE = new Image();
-BLUE_MARBLE.crossOrigin = "anonymous";
-const loader = document.querySelector("#map-indicator .loader");
-const buttons = document.querySelectorAll(".generate");
-const mapSelector = document.getElementById('map-selector');
+class MapManager {
+    constructor() {
+        this.config = {
+            mapUrls: {
+                "xlarge": "static/media/bg16383.webp",
+                "large-nxtgen": "static/media/bg21600-nxtgen.jpg",
+                "large": "static/media/bg12000.jpg",
+                "blkmar": "static/media/bg13500-blkmar.jpg",
+                "normal": "static/media/bg8192.png",
+            },
+            selectors: {
+                mapIndicator: "#map-indicator",
+                loader: "#map-indicator .loader",
+                statusIcon: "#map-indicator ion-icon",
+                buttons: ".generate",
+                mapSelector: "#map-selector"
+            },
+            states: {
+                success: "#70c542"
+            }
+        };
 
-// Preloads the map images
-const mapUrls = {
-    "xlarge": "static/media/bg16383.webp",
-    "large-nxtgen": "static/media/bg21600-nxtgen.jpg",
-    "large": "static/media/bg12000.jpg",
-    "blkmar": "static/media/bg13500-blkmar.jpg",
-    "normal": "static/media/bg8192.png",
-};
+        this.state = {
+            loaded: false,
+            currentMap: null
+        };
 
-Object.values(mapUrls).forEach(url => {
-    const img = new Image();
-    img.src = url;
-});
+        this.elements = {
+            loader: document.querySelector(this.config.selectors.loader),
+            buttons: document.querySelectorAll(this.config.selectors.buttons),
+            mapSelector: document.getElementById(this.config.selectors.mapSelector.slice(1)),
+            statusIcon: document.querySelector(this.config.selectors.statusIcon)
+        };
 
-// Event listener for map selector and buttons
-mapSelector.addEventListener('change', handleMapChange);
+        this.blueMarble = new Image();
+        this.blueMarble.crossOrigin = "anonymous";
 
-buttons.forEach(button => {
-    button.addEventListener("click", () => {
-        handleButtonClick(button.dataset.size);
-    });
-});
+        this.handleMapChange = this.handleMapChange.bind(this);
+        this.handleButtonClick = this.handleButtonClick.bind(this);
+        this.handleMapLoad = this.handleMapLoad.bind(this);
+        this.handleMapError = this.handleMapError.bind(this);
 
-function handleMapChange() {
-    const size = document.querySelector('.generate').dataset.size;
-    BLUE_MARBLE.src = getMapUrl(size);
+        this.init();
+    }
+
+    init() {
+        this.preloadMaps();
+
+        this.setupEventListeners();
+    }
+
+    preloadMaps() {
+        const preloadCache = new Map();
+
+        Object.entries(this.config.mapUrls).forEach(([key, url]) => {
+            const img = new Image();
+            img.src = url;
+            preloadCache.set(key, img);
+        });
+
+        this.preloadCache = preloadCache;
+    }
+
+    setupEventListeners() {
+        this.elements.mapSelector.addEventListener('change', this.handleMapChange);
+
+        this.elements.buttons.forEach(button => {
+            button.addEventListener("click", () => {
+                this.handleButtonClick(button.dataset.size);
+            });
+        });
+
+        this.blueMarble.addEventListener('load', this.handleMapLoad);
+        this.blueMarble.addEventListener('error', this.handleMapError);
+    }
+
+    handleMapChange() {
+        const size = document.querySelector(this.config.selectors.buttons).dataset.size;
+        this.loadMap(size);
+    }
+
+    handleButtonClick(size) {
+        this.loadMap(size);
+        this.showLoader();
+    }
+
+    handleMapLoad() {
+        this.state.loaded = true;
+        this.hideLoader();
+        this.updateStatus('success');
+    }
+
+    handleMapError(error) {
+        console.error('Yikes. Something went wrong.', error);
+        this.hideLoader();
+        this.updateStatus('error');
+    }
+
+    loadMap(size) {
+        const mapUrl = this.getMapUrl(size);
+        if (mapUrl !== this.state.currentMap) {
+            this.state.currentMap = mapUrl;
+            this.blueMarble.src = mapUrl;
+        }
+    }
+
+    getMapUrl(size) {
+        const { selectedIndex, options } = this.elements.mapSelector;
+        const mapType = options[selectedIndex].value;
+        return this.config.mapUrls[mapType] || this.config.mapUrls[size];
+    }
+
+    showLoader() {
+        this.elements.loader.style.display = "block";
+    }
+
+    hideLoader() {
+        this.elements.loader.style.display = "none";
+    }
+
+    updateStatus(status) {
+        const color = status === 'success' ? this.config.states.success : 'red';
+        this.elements.statusIcon.style.color = color;
+    }
 }
 
-function handleButtonClick(size) {
-    BLUE_MARBLE.src = getMapUrl(size);
-    BLUE_MARBLE.onload = () => {
-        loaded = true;
-        loader.style.display = "none";
-        document.querySelector("#map-indicator ion-icon").style.color = "#70c542";
-    };
-    BLUE_MARBLE.onerror = (err) => { console.error(err); };
-}
-
-function getMapUrl(size) {
-    const { selectedIndex, options } = mapSelector;
-    const mapType = options[selectedIndex].value;
-
-    return mapUrls[mapType] || mapUrls[size];
-}
+// Usage
+const mapManager = new MapManager();
 
 function createMap(data, accessible) {
     document.querySelector("#close").classList.add("hidden");
@@ -76,13 +153,13 @@ function createMap(data, accessible) {
 
     setTimeout(() => {
         let interval = setInterval(() => {
-            if (loaded) {
-                const FULL_WIDTH = BLUE_MARBLE.width;
-                const FULL_HEIGHT = BLUE_MARBLE.height;
+            if (mapManager.state.loaded) {
+                const FULL_WIDTH = mapManager.blueMarble.width;
+                const FULL_HEIGHT = mapManager.blueMarble.height;
 
                 let DOT_SIZE = 0.29890625 / 360 * FULL_WIDTH;
                 let LINE_SIZE = 0.09 / 360 * FULL_WIDTH;
-                
+
                 if (document.getElementById("smaller-dots").checked) {
                     DOT_SIZE *= 2.35 / Math.PI;
                     LINE_SIZE *= 1.6 / Math.PI;
@@ -157,7 +234,7 @@ function createMap(data, accessible) {
                 const ctx = canvas.getContext("2d");
 
                 ctx.drawImage(
-                    BLUE_MARBLE,
+                    mapManager.blueMarble,
                     left, top,
                     right - left, bottom - top,
                     0, 0,
