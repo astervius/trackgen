@@ -1,5 +1,5 @@
 const appPrefix = 'TrackGen';
-const appVersion = 'v1.0.7';
+const appVersion = 'v1.0.8';
 const cacheName = `${appPrefix}-${appVersion}`;
 const foldersToCache = ['media', 'js', 'css'];
 const additionalCache = ['/', 'manifest.json', 'index.html'];
@@ -86,10 +86,10 @@ self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
-                cacheNames.filter(cacheName => {
-                    return cacheName.startsWith(appPrefix) && cacheName !== cacheName;
-                }).map(cacheName => {
-                    return caches.delete(cacheName);
+                cacheNames.filter(name => {
+                    return name.startsWith(appPrefix) && name !== cacheName;
+                }).map(name => {
+                    return caches.delete(name);
                 })
             );
         })
