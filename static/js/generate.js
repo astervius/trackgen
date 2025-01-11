@@ -162,7 +162,7 @@ function createMap(data, accessible) {
 
                 if (document.getElementById("smaller-dots").checked) {
                     DOT_SIZE *= 2.35 / Math.PI;
-                    LINE_SIZE *= 1.6 / Math.PI;
+                    LINE_SIZE *= 1.5 / Math.PI;
                 }
 
                 let max_lat = 0;
