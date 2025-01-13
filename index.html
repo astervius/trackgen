@@ -30,8 +30,8 @@
 </head>
 
 <body>
-	<a href="https://github.com/StrawberryMaster/TrackGen" class="github-corner"
-		aria-label="View source on Github"><svg width="80" height="80" viewBox="0 0 250 250"
+	<a href="https://github.com/StrawberryMaster/TrackGen" class="github-corner" aria-label="View source on Github"><svg
+			width="80" height="80" viewBox="0 0 250 250"
 			style="fill:#151513; color:#fff; position: absolute; top: 0; border: 0; right: 0;" aria-hidden="true">
 			<path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
 			<path
@@ -177,14 +177,30 @@
 						<span>Generate Map</span>
 				</div>
 				<div id="gens-ie">
-					<button type="button" id="export-data">
-						<ion-icon name="download-outline" aria-hidden="true"></ion-icon>
-						<span>Export Data</span>
-					</button>
-					<button type="button" id="import-data">
-						<ion-icon name="download-outline" aria-hidden="true"></ion-icon>
-						<span>Import Data</span>
-					</button>
+					<div class="export-column">
+						<button type="button" id="export-data">
+							<ion-icon name="download-outline" aria-hidden="true"></ion-icon>
+							<span>Export Data</span>
+						</button>
+						<div id="export-options" class="hidden">
+							<div class="formats-container">
+								<button type="button" id="export-standard">
+									<ion-icon name="document-outline" aria-hidden="true"></ion-icon>
+									<span>Standard JSON</span>
+								</button>
+								<button type="button" id="export-hurdat">
+									<ion-icon name="document-text-outline" aria-hidden="true"></ion-icon>
+									<span>HURDAT Format</span>
+								</button>
+							</div>
+						</div>
+					</div>
+					<div class="import-column">
+						<button type="button" id="import-data">
+							<ion-icon name="download-outline" aria-hidden="true"></ion-icon>
+							<span>Import Data</span>
+						</button>
+					</div>
 				</div>
 
 			</form>
@@ -267,6 +283,7 @@
 
 	<script src="static/js/manual_input.js"></script>
 	<script src="static/js/export.js"></script>
+	<script src="static/js/export_hurdat.js"></script>
 
 	<script type="module" src="https://unpkg.com/ionicons@latest/dist/ionicons/ionicons.esm.js"></script>
 	<script nomodule="" src="https://unpkg.com/ionicons@latest/dist/ionicons/ionicons.js"></script>

@@ -55,7 +55,7 @@ function exportData() {
 }
 
 // download the track data
-async function downloadTrackData() {
+async function downloadTrackData(format = 'json') {
     try {
         const stormName = document.querySelector(".name").value?.trim() || 'storm_data';
         const data = exportData();
@@ -65,15 +65,27 @@ async function downloadTrackData() {
             throw new Error('No valid data to export');
         }
 
-        const blob = new Blob([JSON.stringify(data, null, 2)], {
-            type: "application/json"
-        });
+        let content;
+        let fileExtension;
+        let mimeType;
 
+        if (format === 'hurdat') {
+            content = generateHURDATString(data);
+            fileExtension = 'txt';
+            mimeType = 'text/plain';
+        } else {
+            content = JSON.stringify(data, null, 2);
+            fileExtension = 'json';
+            mimeType = 'application/json';
+        }
+
+        const blob = new Blob([content], { type: mimeType });
         const url = URL.createObjectURL(blob);
+
         try {
             const a = document.createElement("a");
             a.href = url;
-            a.download = `${stormName}.json`;
+            a.download = `${stormName}.${fileExtension}`;
             a.click();
             console.log(SUCCESS_MESSAGES.download);
         } finally {
@@ -203,5 +215,21 @@ async function importPoints(data) {
     }
 }
 
-document.querySelector("#export-data")?.addEventListener("click", downloadTrackData);
+document.querySelector("#export-data")?.addEventListener("click", () => {
+    const options = document.querySelector("#export-options");
+    options.classList.toggle("show");
+});
+
+document.querySelector("#export-standard")?.addEventListener("click", async () => {
+    const options = document.querySelector("#export-options");
+    options.classList.remove("show");
+    await downloadTrackData('json');
+});
+
+document.querySelector("#export-hurdat")?.addEventListener("click", async () => {
+    const options = document.querySelector("#export-options");
+    options.classList.remove("show");
+    await downloadTrackData('hurdat');
+});
+
 document.querySelector("#import-data")?.addEventListener("click", importData);
