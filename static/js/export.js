@@ -1,130 +1,207 @@
-// This script is used to export and import the data from the tracker -- WIP
+const SPEED_CONVERSION = {
+    mph: 1.151,
+    kph: 1.852
+};
+
+const SUCCESS_MESSAGES = {
+    export: 'Data successfully exported',
+    download: 'Storm data downloaded',
+    import: 'Data successfully imported'
+};
+
+// for speed conversions
+function convertSpeed(speed, fromUnit, toUnit = 'knots') {
+    if (fromUnit === toUnit) return speed;
+    return Math.round(fromUnit === 'knots' ?
+        speed * SPEED_CONVERSION[toUnit] :
+        speed / SPEED_CONVERSION[fromUnit]);
+}
+
+// to safely get the selected value
+function getSelectedValue(element, attribute = 'data-selected') {
+    return element?.getAttribute(attribute)?.replace('°', '') || '';
+}
+
+// ta-da! the main export function
 function exportData() {
-    const exportPoints = [];
+    try {
+        const points = Array.from(document.querySelectorAll("#inputs .point"))
+            .map(point => {
+                const latSelect = point.querySelector("select.latitude");
+                const lonSelect = point.querySelector("select.longitude");
+                const speedSelect = point.querySelector("select.speed");
 
-    document.querySelectorAll("#inputs .point").forEach(point => {
-        const name = point.querySelector(".name").value;
+                const speed = Number(point.querySelector("input.speed").value);
+                const unit = getSelectedValue(speedSelect);
 
-        const latitudeInput = point.querySelector("input.latitude");
-        const latitudeSelect = point.querySelector("select.latitude");
-        const latitude = latitudeInput.value + latitudeSelect.getAttribute("data-selected").replace("°", "");
+                const stageElement = point.querySelector(".stage");
+                return {
+                    name: point.querySelector(".name").value?.trim(),
+                    latitude: point.querySelector("input.latitude").value +
+                        getSelectedValue(latSelect),
+                    longitude: point.querySelector("input.longitude").value +
+                        getSelectedValue(lonSelect),
+                    speed: convertSpeed(speed, unit),
+                    stage: stageElement.value || stageElement.getAttribute("data-selected")
+                };
+            });
 
-        const longitudeInput = point.querySelector("input.longitude");
-        const longitudeSelect = point.querySelector("select.longitude");
-        const longitude = longitudeInput.value + longitudeSelect.getAttribute("data-selected").replace("°", "");
+        console.log(SUCCESS_MESSAGES.export, points);
+        return points;
+    } catch (error) {
+        console.error('Zamn! Error exporting data:', error);
+        throw new Error('Failed to export data. Please check the input values.');
+    }
+}
 
-        let speed = Number(point.querySelector("input.speed").value);
-        const speedSelect = point.querySelector("select.speed");
-        const unit = speedSelect.getAttribute("data-selected");
-        if (unit === "mph") {
-            speed /= 1.151;
-            speed = Math.round(speed);
-        } else if (unit === "kph") {
-            speed /= 1.852;
-            speed = Math.round(speed);
+// download the track data
+async function downloadTrackData() {
+    try {
+        const stormName = document.querySelector(".name").value?.trim() || 'storm_data';
+        const data = exportData();
+
+        // validate the data before creating a blob
+        if (!Array.isArray(data) || !data.length) {
+            throw new Error('No valid data to export');
         }
 
-        const stage = point.querySelector(".stage").getAttribute("data-selected");
-
-        exportPoints.push({
-            name,
-            latitude,
-            longitude,
-            speed,
-            stage
+        const blob = new Blob([JSON.stringify(data, null, 2)], {
+            type: "application/json"
         });
-    });
 
-    console.log(`Whew. Data successfully exported: ${exportPoints}`);
-    return exportPoints;
+        const url = URL.createObjectURL(blob);
+        try {
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${stormName}.json`;
+            a.click();
+            console.log(SUCCESS_MESSAGES.download);
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+    } catch (error) {
+        console.error('Zamn! Error downloading data:', error);
+        alert('Failed to download data. Please try again.');
+    }
 }
 
-// Downloads the storm data
-function downloadTrackData() {
-    const stormName = document.querySelector(".name").value;
-    const data = exportData();
-    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${stormName}.json`;
-    a.click();
-    console.log(`Storm data downloaded!`);
-}
-
-document.querySelector("#export-data").addEventListener("click", downloadTrackData);
-
-// Imports the storm data
-function importData() {
+// basic import functionality
+async function importData() {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "application/json";
-    input.addEventListener("change", () => {
-        const file = input.files[0];
+
+    input.addEventListener("change", async () => {
+        try {
+            const file = input.files?.[0];
+            if (!file) return;
+
+            const data = await readFileAsJSON(file);
+            if (validateImportData(data)) {
+                await importPoints(data);
+                console.log(SUCCESS_MESSAGES.import, data);
+            }
+        } catch (error) {
+            console.error('Zamn! Error importing data:', error);
+            alert('Failed to import data. Please check the file format.');
+        }
+    });
+
+    input.click();
+}
+
+// read our file as JSON
+function readFileAsJSON(file) {
+    return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => {
-            const data = JSON.parse(reader.result);
-            console.log(`Imported data successfully: ${data}`);
-            importPoints(data);
+            try {
+                resolve(JSON.parse(reader.result));
+            } catch (error) {
+                reject(new Error('Invalid JSON format'));
+            }
         };
+        reader.onerror = () => reject(new Error('Failed to read file'));
         reader.readAsText(file);
     });
-    input.click();
-    console.log(`Importing data...`);
 }
 
-document.querySelector("#import-data").addEventListener("click", importData);
+// so we can validate the imported data
+function validateImportData(data) {
+    if (!Array.isArray(data) || !data.length) {
+        throw new Error('Invalid data format');
+    }
 
-// We now import the data
-function importPoints(data) {
-    const inputs = document.querySelector("#inputs");
-    let new_inputs = document.querySelector(".point");
-
-    function populatePoint(pointData, pointElement) {
-        pointElement.querySelector(".name").value = pointData.name;
-
-        const latitude = pointData.latitude;
-        pointElement.querySelector("input.latitude").value = latitude.slice(0, -1);
-        pointElement.querySelector("select.latitude").setAttribute("data-selected", latitude.slice(-1));
-        if (latitude.slice(-1) === "S") {
-            pointElement.querySelector("select.latitude").selectedIndex = 1;
-        }
-
-        const longitude = pointData.longitude;
-        pointElement.querySelector("input.longitude").value = longitude.slice(0, -1);
-        pointElement.querySelector("select.longitude").setAttribute("data-selected", longitude.slice(-1));
-        if (longitude.slice(-1) === "W") {
-            pointElement.querySelector("select.longitude").selectedIndex = 1;
-        }
-
-        let speed = pointData.speed;
-        const unit = pointElement.querySelector("select.speed").getAttribute("data-selected");
-        if (unit === "mph") {
-            speed *= 1.151;
-        } else if (unit === "kph") {
-            speed *= 1.852;
-        }
-        pointElement.querySelector("input.speed").value = speed;
-        pointElement.querySelector("select.speed").setAttribute("data-selected", unit);
-
-        const stage = pointData.stage;
-        const stageSelect = pointElement.querySelector(".stage");
-        Array.from(stageSelect.options).forEach(option => {
-            if (option.value === stage) {
-                option.selected = true;
+    const requiredFields = ['name', 'latitude', 'longitude', 'speed', 'stage'];
+    data.forEach((point, index) => {
+        requiredFields.forEach(field => {
+            if (!(field in point)) {
+                throw new Error(`Missing ${field} in point ${index + 1}`);
             }
         });
-        stageSelect.setAttribute("data-selected", stage);
+    });
 
-        handle_removal(pointElement.querySelector(".remove"));
+    return true;
+}
+
+// import the points into the form
+async function importPoints(data) {
+    const inputs = document.querySelector("#inputs");
+    let newInputs = document.querySelector(".point");
+
+    function populatePoint(pointData, pointElement) {
+        // storm name
+        pointElement.querySelector(".name").value = pointData.name;
+
+        // latitude and longitude
+        const latInput = pointElement.querySelector("input.latitude");
+        const latSelect = pointElement.querySelector("select.latitude");
+        const lat = pointData.latitude;
+        latInput.value = lat.replace(/[NS]$/, '');
+        latSelect.selectedIndex = lat.endsWith('S') ? 1 : 0;
+        latSelect.setAttribute("data-selected", lat.slice(-1));
+
+        const lonInput = pointElement.querySelector("input.longitude");
+        const lonSelect = pointElement.querySelector("select.longitude");
+        const lon = pointData.longitude;
+        lonInput.value = lon.replace(/[EW]$/, '');
+        lonSelect.selectedIndex = lon.endsWith('W') ? 1 : 0;
+        lonSelect.setAttribute("data-selected", lon.slice(-1));
+
+        // storm speed
+        const speedInput = pointElement.querySelector("input.speed");
+        const speedSelect = pointElement.querySelector("select.speed");
+        const unit = getSelectedValue(speedSelect);
+        speedInput.value = convertSpeed(pointData.speed, 'knots', unit);
+
+        // storm category
+        const stageSelect = pointElement.querySelector(".stage");
+        stageSelect.value = pointData.stage;
+        stageSelect.setAttribute("data-selected", pointData.stage);
+
+        if (typeof handle_removal === 'function') {
+            handle_removal(pointElement.querySelector(".remove"));
+        }
     }
 
-    populatePoint(data[0], new_inputs);
+    // first point
+    populatePoint(data[0], newInputs);
 
+    // remaining points
+    const fragment = document.createDocumentFragment();
     for (let i = 1; i < data.length; i++) {
-        const cloned_inputs = new_inputs.cloneNode(true);
-        populatePoint(data[i], cloned_inputs);
-        inputs.appendChild(cloned_inputs);
-        cloned_inputs.scrollIntoView();
+        const clonedInputs = newInputs.cloneNode(true);
+        populatePoint(data[i], clonedInputs);
+        fragment.appendChild(clonedInputs);
+    }
+    inputs.appendChild(fragment);
+
+    // scroll to the last point
+    const lastPoint = inputs.lastElementChild;
+    if (lastPoint) {
+        lastPoint.scrollIntoView({ behavior: 'smooth' });
     }
 }
+
+document.querySelector("#export-data")?.addEventListener("click", downloadTrackData);
+document.querySelector("#import-data")?.addEventListener("click", importData);
