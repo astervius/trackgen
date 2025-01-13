@@ -423,6 +423,95 @@ ion-icon+span {
 	color: #fff;
 }
 
+#gens button, #gens-ie button {
+	font-size: 2.5vh;
+	padding: 1.75vh 0;
+}
+
+#gens-ie button:hover {
+	border-color: var(--foreground-2);
+	background-color: var(--foreground-2);
+	cursor: pointer;
+	color: #fff;
+	transition: all 0.3s;
+}
+
+#options-container {
+	color: var(--foreground-1);
+	font-size: 20px;
+	margin: .5rem auto;
+	white-space: normal;
+}
+
+#options-container * {
+	vertical-align: middle;
+	margin: 1.25dvh 1.5dvh 1dvh auto;
+}
+
+#options-container label {
+	cursor: help;
+}
+
+#map-selector {
+	font-weight: 300;
+	font-style: italic;
+	padding: .2rem 0 .2rem .4rem;
+}
+
+#gens, #gens-ie {
+	display: grid;
+}
+
+#gens-ie {
+	grid-column-gap: .15rem;
+	grid-template-columns: 1fr 1fr;
+}
+
+.export-column, .import-column {
+	flex: 1;
+	position: relative;
+}
+
+.export-column button, .import-column button {
+	width: 100%;
+}
+
+#export-options {
+	background: #ddddddb2;
+	border-radius: 0 0 .2rem .2rem;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+	display: flex;
+	flex-direction: column;
+	gap: .5rem;
+	left: 0;
+	margin: .5rem 0;
+	max-height: 0;
+	overflow: hidden;
+	position: absolute;
+	right: 0;
+	transition: max-height 0.3s ease-out;
+}
+
+#export-options.show {
+	max-height: 200px;
+	padding: .5rem;
+}
+
+#export-options .formats-container {
+	display: flex;
+	gap: .5rem;
+}
+
+#export-options button {
+	font-size: .9em;
+	flex: 1;
+	overflow: hidden;
+	padding: .5rem;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	width: 100%;
+}
+
 @media screen and (max-width: 800px) {
 	#headers {
 		display: none;
@@ -489,50 +578,16 @@ ion-icon+span {
 		grid-template-rows: 5fr 1fr;
 	}
 
-}
+		#export-options .formats-container {
+		flex-direction: column;
+	}
 
-#gens button, #gens-ie button {
-	font-size: 2.5vh;
-	padding: 1.75vh 0;
-}
-
-#gens-ie button:hover {
-	border-color: var(--foreground-2);
-	background-color: var(--foreground-2);
-	cursor: pointer;
-	color: #fff;	
-	transition: all 0.3s;
-}
-
-#options-container {
-	color: var(--foreground-1);
-	font-size: 20px;
-	margin: .5rem auto;
-	white-space: normal;
-}
-
-#options-container * {
-	vertical-align: middle;
-	margin: 1.25dvh 1.5dvh 1dvh auto;
-}
-
-#options-container label {
-	cursor: help;
-}
-
-#map-selector {
-	font-weight: 300;
-	font-style: italic;
-	padding: .2rem 0 .2rem .4rem;
-}
-
-#gens, #gens-ie {
-	display: grid;
-}
-
-#gens-ie {
-	grid-column-gap: .15rem;
-	grid-template-columns: 1fr 1fr;
+	#export-options button {
+		font-size: 14px;
+		margin: .2rem 0;
+		padding: .5rem;
+		width: 100%;
+	}
 }
 
 @media (prefers-color-scheme: dark) {
@@ -553,7 +608,7 @@ ion-icon+span {
 
 	#new-point,
 	.generate {
-        background-color: #696969;
-        color: #fff;
-    }
+		background-color: #696969;
+		color: #fff;
+	}
 }
