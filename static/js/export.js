@@ -1,6 +1,7 @@
 const SPEED_CONVERSION = {
     mph: 1.151,
-    kph: 1.852
+    kph: 1.852,
+    kt: 1
 };
 
 const SUCCESS_MESSAGES = {
@@ -11,10 +12,14 @@ const SUCCESS_MESSAGES = {
 
 // for speed conversions
 function convertSpeed(speed, fromUnit, toUnit = 'knots') {
+    if (!speed) return speed;
     if (fromUnit === toUnit) return speed;
-    return Math.round(fromUnit === 'knots' ?
-        speed * SPEED_CONVERSION[toUnit] :
-        speed / SPEED_CONVERSION[fromUnit]);
+    
+    if (toUnit === 'knots') {
+        return Math.round(speed / SPEED_CONVERSION[fromUnit]);
+    } else {
+        return Math.round(speed * SPEED_CONVERSION[toUnit]);
+    }
 }
 
 // to safely get the selected value
