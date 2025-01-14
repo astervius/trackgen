@@ -499,7 +499,31 @@ ion-icon+span {
 
 #export-options .formats-container {
 	display: flex;
+	flex-direction: column;
 	gap: .5rem;
+}
+
+.compress-option {
+	display: flex;
+	align-items: center;
+	gap: .25rem;
+	padding: .25rem;
+	background-color: rgba(255, 255, 255, 0.6);
+	border-radius: .2rem 0 0 .2rem;
+	font-size: .8em;
+	margin-left: .5rem;
+}
+
+.compress-option label {
+	font-size: .85em;
+	cursor: pointer;
+}
+
+.compress-option input[type="checkbox"] {
+	cursor: pointer;
+	width: auto;
+	margin: 0;
+	transform: scale(0.9);
 }
 
 #export-options button {
@@ -578,7 +602,7 @@ ion-icon+span {
 		grid-template-rows: 5fr 1fr;
 	}
 
-		#export-options .formats-container {
+	#export-options .formats-container {
 		flex-direction: column;
 	}
 

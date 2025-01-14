@@ -14,7 +14,7 @@ const SUCCESS_MESSAGES = {
 function convertSpeed(speed, fromUnit, toUnit = 'knots') {
     if (!speed) return speed;
     if (fromUnit === toUnit) return speed;
-    
+
     if (toUnit === 'knots') {
         return Math.round(speed / SPEED_CONVERSION[fromUnit]);
     } else {
@@ -79,7 +79,8 @@ async function downloadTrackData(format = 'json') {
             fileExtension = 'txt';
             mimeType = 'text/plain';
         } else {
-            content = JSON.stringify(data, null, 2);
+            const shouldCompress = document.querySelector("#compress-json")?.checked;
+            content = JSON.stringify(data, null, shouldCompress ? 0 : 2);
             fileExtension = 'json';
             mimeType = 'application/json';
         }
