@@ -20,11 +20,11 @@ class MapManager {
     constructor() {
         this.config = {
             mapUrls: {
-                "xlarge": "static/media/bg16383.webp",
-                "large-nxtgen": "static/media/bg21600-nxtgen.jpg",
-                "large": "static/media/bg12000.jpg",
-                "blkmar": "static/media/bg13500-blkmar.jpg",
-                "normal": "static/media/bg8192.png",
+                "xlarge": "/static/media/bg16383.webp",
+                "large-nxtgen": "/static/media/bg21600-nxtgen.jpg",
+                "large": "/static/media/bg12000.jpg",
+                "blkmar": "/static/media/bg13500-blkmar.jpg",
+                "normal": "/static/media/bg8192.png",
             },
             selectors: {
                 mapIndicator: "#map-indicator",
@@ -50,13 +50,14 @@ class MapManager {
             statusIcon: document.querySelector(this.config.selectors.statusIcon)
         };
 
-        this.blueMarble = new Image();
-        this.blueMarble.crossOrigin = "anonymous";
+        this.worker = new Worker('/static/js/worker.js');
+        this.worker.onmessage = this.handleWorkerMessage.bind(this);
+
+        this.blueMarble = null;
 
         this.handleMapChange = this.handleMapChange.bind(this);
         this.handleButtonClick = this.handleButtonClick.bind(this);
-        this.handleMapLoad = this.handleMapLoad.bind(this);
-        this.handleMapError = this.handleMapError.bind(this);
+        this.handleWorkerMessage = this.handleWorkerMessage.bind(this);
 
         this.init();
     }
@@ -87,9 +88,6 @@ class MapManager {
                 this.handleButtonClick(button.dataset.size);
             });
         });
-
-        this.blueMarble.addEventListener('load', this.handleMapLoad);
-        this.blueMarble.addEventListener('error', this.handleMapError);
     }
 
     handleMapChange() {
@@ -102,23 +100,27 @@ class MapManager {
         this.showLoader();
     }
 
-    handleMapLoad() {
-        this.state.loaded = true;
-        this.hideLoader();
-        this.updateStatus('success');
-    }
+    handleWorkerMessage(event) {
+        const { status, blueMarble, error } = event.data;
 
-    handleMapError(error) {
-        console.error('Yikes. Something went wrong.', error);
-        this.hideLoader();
-        this.updateStatus('error');
+        if (status === 'success') {
+            this.blueMarble = blueMarble;
+            this.state.loaded = true;
+            this.hideLoader();
+            this.updateStatus('success');
+        } else {
+            console.error('Yikes. Something went wrong.', error);
+            this.hideLoader();
+            this.updateStatus('error');
+        }
     }
 
     loadMap(size) {
         const mapUrl = this.getMapUrl(size);
         if (mapUrl !== this.state.currentMap) {
             this.state.currentMap = mapUrl;
-            this.blueMarble.src = mapUrl;
+            this.state.loaded = false;
+            this.worker.postMessage({ url: mapUrl });
         }
     }
 
