@@ -1,5 +1,5 @@
 const appPrefix = 'TrackGen';
-const appVersion = 'v1.0.8';
+const appVersion = 'v1.0.9';
 const cacheName = `${appPrefix}-${appVersion}`;
 const foldersToCache = ['media', 'js', 'css'];
 const additionalCache = ['/', 'manifest.json', 'index.html'];
@@ -34,9 +34,28 @@ async function generateFilesToCache() {
     return filesToCache;
 }
 
+function isImage(request) {
+    return request.destination === 'image' || request.url.match(/\.(png|jpg|jpeg|webp|gif)$/i);
+}
+
 function isCachable(request) {
     const url = new URL(request.url);
     return filesToCache && url.origin === location.origin && filesToCache.includes(url.pathname);
+}
+
+async function staleWhileRevalidate(request) {
+    const cache = await caches.open(cacheName);
+    const cachedResponse = await cache.match(request);
+
+    const fetchPromise = fetch(request).then(response => {
+        if (response.ok) {
+            cache.put(request, response.clone());
+        }
+        console.log(`Updated cache for URL ${request.url}.`);
+        return response;
+    });
+
+    return cachedResponse || fetchPromise;
 }
 
 async function cacheFirstWithRefresh(request) {
@@ -75,10 +94,15 @@ self.addEventListener('install', event => {
 self.addEventListener("fetch", async (event) => {
     const request = event.request;
 
-    if (isCachable(request)) {
-        event.respondWith(cacheFirstWithRefresh(request));
-    } else {
+    if (!isCachable(request)) {
         event.respondWith(fetch(request));
+        return;
+    }
+
+    if (isImage(request)) {
+        event.respondWith(staleWhileRevalidate(request));
+    } else {
+        event.respondWith(cacheFirstWithRefresh(request));
     }
 });
 
