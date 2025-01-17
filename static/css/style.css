@@ -477,7 +477,7 @@ ion-icon+span {
 }
 
 #export-options {
-	background: #ddddddb2;
+	background: #dddddde5;
 	border-radius: 0 0 .2rem .2rem;
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 	display: flex;
@@ -490,6 +490,7 @@ ion-icon+span {
 	position: absolute;
 	right: 0;
 	transition: max-height 0.3s ease-out;
+	z-index: 1;
 }
 
 #export-options.show {
@@ -634,5 +635,9 @@ ion-icon+span {
 	.generate {
 		background-color: #696969;
 		color: #fff;
+	}
+
+	#export-options {
+		background: #dddddde5;
 	}
 }
