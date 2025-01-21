@@ -91,19 +91,34 @@ self.addEventListener('install', event => {
     );
 });
 
-self.addEventListener("fetch", async (event) => {
-    const request = event.request;
+function waitForActiveServiceWorker() {
+    return new Promise(resolve) => {
+        if (self.registration.active) {
+            resolve(self.registration);
+        } else {
+            self.addEventListener('activate', () => {
+                resolve(self.registration);
+            });
+        }
+    });
+}
 
-    if (!isCachable(request)) {
-        event.respondWith(fetch(request));
-        return;
-    }
+self.addEventListener('fetch', async (event) => {
+    event.respondWith(
+        waitForActiveServiceWorker().then(() => {
+            const request = event.request;
 
-    if (isImage(request)) {
-        event.respondWith(staleWhileRevalidate(request));
-    } else {
-        event.respondWith(cacheFirstWithRefresh(request));
-    }
+            if (!isCachable(request)) {
+                return fetch(request);
+            }
+
+            if (isImage(request)) {
+                return staleWhileRevalidate(request);
+            } else {
+                return cacheFirstWithRefresh(request);
+            }
+        })
+    );
 });
 
 self.addEventListener('activate', event => {
