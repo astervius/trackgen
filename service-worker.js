@@ -92,7 +92,7 @@ self.addEventListener('install', event => {
 });
 
 function waitForActiveServiceWorker() {
-    return new Promise(resolve) => {
+    return new Promise((resolve) => {
         if (self.registration.active) {
             resolve(self.registration);
         } else {
