@@ -18,6 +18,10 @@ function parseHurdat(data) {
     const parsed = [];
     let uniqueId = "";
     lines.forEach(line => {
+        if (line.trim() === '') {
+            return;
+        }
+        
         const cols = line.split(", ");
 
         if (cols.length === 3) {
