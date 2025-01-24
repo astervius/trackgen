@@ -1,58 +1,101 @@
+const domElements = {
+	accessible: document.querySelector("#accessible"),
+	fileFormat: document.querySelector("#file-format"),
+	pasteTextarea: document.querySelector("#paste-upload textarea"),
+	fileInput: document.querySelector("#file-input")
+};
+
+const parsers = {
+	hurdat: parseHurdat,
+	atcf: parseAtcf,
+	ibtracs: parseIbtracs,
+	rsmc: parseRsmc,
+	storms: parseStorms
+};
+
 function mapFromFile(data, type, accessible) {
-	let parsed;
+	const parser = parsers[type.toLowerCase()];
+	if (!parser) return;
 
-	if (type === "hurdat") {
-		parsed = parseHurdat(data);
-	} else if (type === "atcf") {
-		parsed = parseAtcf(data);
-	} else if (type === "ibtracs") {
-		parsed = parseIbtracs(data);
-	} else if (type === "rsmc") {
-		parsed = parseRsmc(data);
-	} else if (type === "storms") {
-		parsed = parseStorms(data)
-	} else {
-		return;
+	try {
+		const parsed = parser(data.trim());
+		createMap(parsed, accessible);
+	} catch (error) {
+		alert(`Jeepers! Error parsing ${type} data: ${error.message}.`);
 	}
-
-	createMap(parsed, accessible);
 }
 
 document.querySelector("#paste-upload").addEventListener("submit", async (e) => {
 	e.preventDefault();
-
 	const accessible = document.querySelector("#accessible").checked;
-
-	let data = document.querySelector("#paste-upload textarea").value;
+	const textarea = document.querySelector("#paste-upload textarea");
+	let data = textarea.value.trim();
 	const type = document.querySelector("#file-format").getAttribute("data-selected").toLowerCase();
 
-	// for URLs and pastebin-like services
-	if (data.startsWith('https://')) {
-		const response = await fetch(data);
-		if (response.ok) {
+	if (isValidUrl(data)) {
+		try {
+			// for URLs and pastebin-like services
+			const proxyUrl = 'https://api.allorigins.win/raw?url=';
+			const targetUrl = ensureRawUrl(data);
+
+			const response = await fetch(proxyUrl + encodeURIComponent(targetUrl), {
+				headers: {
+					'X-Requested-With': 'XMLHttpRequest'
+				}
+			});
+
+			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			data = await response.text();
-		} else {
-			console.error('Unable to fetch data from URL:', response.status);
+		} catch (error) {
+			alert(`Jinkies! Failed to fetch data from URL: ${error}\nTip: try pasting the raw data instead.`);
 			return;
 		}
 	}
 
 	mapFromFile(data, type, accessible);
+	textarea.value = "";
 });
 
-document.querySelector("#file-input").addEventListener("change", (e) => {
-	const accessible = document.querySelector("#accessible").checked;
-	const type = document.querySelector("#file-format").getAttribute("data-selected").toLowerCase();
+const isValidUrl = (str) => {
+	try {
+		new URL(str);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
+const ensureRawUrl = (url) => {
+	const urlObj = new URL(url);
+
+	// convert pastebin.com/abc123 to pastebin.com/raw/abc123
+	if (urlObj.hostname === 'pastebin.com' && !urlObj.pathname.startsWith('/raw')) {
+		return `https://pastebin.com/raw${urlObj.pathname}`;
+	}
+
+	// convert gist.github.com/abc123 to gist.githubusercontent.com/abc123/raw
+	if (urlObj.hostname === 'github.com' && !urlObj.pathname.includes('/raw/')) {
+		return url.replace('/blob/', '/raw/');
+	}
+
+	return url;
+};
+
+domElements.fileInput.addEventListener("change", (e) => {
+	const file = e.target.files[0];
+	if (!file) return;
 
 	const fr = new FileReader();
-	const file = e.target.files[0];
-
-	fr.onload = evt => {
-		const data = evt.target.result;
-		document.querySelector("#file-input").value = "";
-
-		mapFromFile(data, type, accessible);
+	fr.onload = (evt) => {
+		try {
+			mapFromFile(evt.target.result,
+				domElements.fileFormat.getAttribute("data-selected").toLowerCase(),
+				domElements.accessible.checked
+			);
+		} finally {
+			domElements.fileInput.value = "";
+		}
 	};
-
+	fr.onerror = () => alert("Zoinks! File could not be read.");
 	fr.readAsText(file, "UTF-8");
 });
