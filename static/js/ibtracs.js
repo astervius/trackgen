@@ -38,6 +38,10 @@ function parseIbtracs(data) {
     const parsed = [];
     lines.forEach(line => {
         if (line !== "") {
+            if (line.trim() === '') {
+                return;
+            }
+
             const cols = line.split(",");
 
             const wmo_wind = Number(cols[8]);

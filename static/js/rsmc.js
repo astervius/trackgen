@@ -15,6 +15,10 @@ function parseRsmc(data) {
     let uniqueId = "";
 
     lines.forEach(line => {
+        if (line.trim() === '') {
+            return;
+        }
+        
         const cols = line.split(" ").filter(l => l !== "");
 
         if (cols.length === 9) {

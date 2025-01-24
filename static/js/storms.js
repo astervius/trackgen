@@ -39,6 +39,10 @@ function parseStorms(data) {
     const parsed = [];
 
     lines.forEach(line => {
+        if (line.trim() === '') {
+            return;
+        }
+        
         const cols = line.trim().split(/[\s,]+/).filter(col => col.length > 0);
 
         if (cols.length >= 13) {
