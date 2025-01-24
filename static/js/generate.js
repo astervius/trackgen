@@ -146,160 +146,178 @@ class MapManager {
 const mapManager = new MapManager();
 
 function createMap(data, accessible) {
-    document.querySelector("#close").classList.add("hidden");
-    document.querySelector("#output").classList.add("hidden");
-    document.querySelector("#loader").classList.remove("hidden");
-    document.querySelector("#image-container").classList.remove("hidden");
+    const output = document.querySelector("#output");
+    const loader = document.querySelector("#loader");
+    const closeButton = document.querySelector("#close");
+    const imageContainer = document.querySelector("#image-container");
+    const smallerDotsCheckbox = document.getElementById("smaller-dots");
 
-    setTimeout(() => {
-        let interval = setInterval(() => {
+    closeButton.classList.add("hidden");
+    output.classList.add("hidden");
+    loader.classList.remove("hidden");
+    imageContainer.classList.remove("hidden");
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    new Promise((resolve) => {
+        const checkLoaded = () => {
             if (mapManager.state.loaded) {
-                const FULL_WIDTH = mapManager.blueMarble.width;
-                const FULL_HEIGHT = mapManager.blueMarble.height;
-
-                let DOT_SIZE = 0.29890625 / 360 * FULL_WIDTH;
-                let LINE_SIZE = 0.09 / 360 * FULL_WIDTH;
-
-                if (document.getElementById("smaller-dots").checked) {
-                    DOT_SIZE *= 2.35 / Math.PI;
-                    LINE_SIZE *= 1.5 / Math.PI;
-                }
-
-                let max_lat = 0;
-                let max_long = 0;
-
-                let min_lat = FULL_HEIGHT + 1;
-                let min_long = FULL_WIDTH + 1;
-
-                for (let i = 0; i < data.length; i++) {
-                    const tmp_lat = Number(data[i].latitude.slice(0, -1));
-                    const tmp_long = Number(data[i].longitude.slice(0, -1));
-
-                    data[i].latitude = FULL_HEIGHT / 2 - tmp_lat % 90 * (data[i].latitude.slice(-1) === "S" ? -1 : 1) / 180 * FULL_HEIGHT;
-                    data[i].longitude = FULL_WIDTH / 2 - tmp_long % 180 * (data[i].longitude.slice(-1) === "E" ? -1 : 1) / 360 * FULL_WIDTH;
-
-                    if (Math.floor(tmp_lat / 90) % 2 === 1) {
-                        data[i].latitude -= FULL_HEIGHT / 2;
-                    }
-
-                    if (Math.floor(tmp_long / 180) % 2 === 1) {
-                        data[i].longitude -= FULL_WIDTH / 2;
-                    }
-
-                    max_lat = Math.max(max_lat, data[i].latitude);
-                    max_long = Math.max(max_long, data[i].longitude);
-
-                    min_lat = Math.min(min_lat, data[i].latitude);
-                    min_long = Math.min(min_long, data[i].longitude);
-                }
-
-                let top = min_lat - FULL_HEIGHT * 5 / 180;
-                let bottom = max_lat + FULL_HEIGHT * 5 / 180;
-
-                let left = min_long - FULL_WIDTH * 5 / 360;
-                let right = max_long + FULL_WIDTH * 5 / 360;
-
-                if (right - left < FULL_HEIGHT * 45 / 180) {
-                    const padding = (FULL_HEIGHT * 45 / 180 - (right - left)) / 2;
-
-                    left -= padding;
-                    right += padding;
-                }
-
-                if (right - left < bottom - top) {
-                    const padding = ((bottom - top) - (right - left)) / 2;
-
-                    left -= padding;
-                    right += padding;
-                }
-
-                if (bottom - top < (right - left) / 1.618033988749894) {
-                    const padding = ((right - left) / 1.618033988749894 - (bottom - top)) / 2;
-
-                    top -= padding;
-                    bottom += padding;
-                }
-
-                if (left < 0) left = 0;
-                if (right > FULL_WIDTH) right = FULL_WIDTH;
-
-                if (top < 0) top = 0;
-                if (bottom > FULL_HEIGHT) bottom = FULL_HEIGHT;
-
-                const canvas = document.createElement("canvas");
-
-                canvas.width = right - left;
-                canvas.height = bottom - top;
-
-                const ctx = canvas.getContext("2d");
-
-                ctx.drawImage(
-                    mapManager.blueMarble,
-                    left, top,
-                    right - left, bottom - top,
-                    0, 0,
-                    canvas.width, canvas.height
-                );
-
-                const named_tracks = {};
-                data.forEach(point => {
-                    point.latitude -= top;
-                    point.longitude -= left;
-
-                    if (point.name in named_tracks) {
-                        named_tracks[point.name].push(point);
-                    } else {
-                        named_tracks[point.name] = [point];
-                    }
-                });
-
-
-                Object.values(named_tracks).forEach(points => {
-                    ctx.lineWidth = LINE_SIZE;
-                    ctx.strokeStyle = "white";
-
-                    ctx.beginPath();
-                    ctx.lineTo(points[0].longitude, points[0].latitude);
-
-                    points.slice(1).forEach(point => {
-                        ctx.lineTo(point.longitude, point.latitude);
-                    });
-
-                    ctx.stroke();
-
-                    points.forEach(point => {
-                        ctx.fillStyle = catToColour(point.category, accessible);
-                        ctx.beginPath();
-
-                        if (point.shape === "triangle") {
-                            const side = DOT_SIZE * 3 ** 0.5;
-                            const bis = side * 3 ** 0.5 / 2;
-
-                            ctx.moveTo(point.longitude, point.latitude - bis * 2 / 3);
-                            ctx.lineTo(point.longitude - side / 2, point.latitude + bis / 3);
-                            ctx.lineTo(point.longitude + side / 2, point.latitude + bis / 3);
-                        } else if (point.shape === "square") {
-                            const size = DOT_SIZE / 2 ** 0.5
-                            ctx.rect(point.longitude - size, point.latitude - size, size * 2, size * 2);
-                        } else if (point.shape === "circle") {
-                            ctx.arc(point.longitude, point.latitude, DOT_SIZE, 0, 2 * Math.PI);
-                        }
-
-                        ctx.fill();
-                    });
-                });
-
-                const output = document.querySelector("#output");
-                output.innerHTML = "";
-                output.classList.remove("hidden");
-                output.src = canvas.toDataURL();
-
-                document.querySelector("#loader").classList.add("hidden");
-                document.querySelector("#close").classList.remove("hidden");
-                document.querySelector("#output").classList.remove("hidden");
-
-                clearInterval(interval);
+                resolve();
+            } else {
+                setTimeout(checkLoaded, 100);
             }
-        }, 100);
-    }, 100);
+        };
+        checkLoaded();
+    }).then(() => {
+        const FULL_WIDTH = mapManager.blueMarble.width;
+        const FULL_HEIGHT = mapManager.blueMarble.height;
+
+        const DOT_SIZE = (() => {
+            let size = (0.29890625 / 360) * FULL_WIDTH;
+            if (smallerDotsCheckbox.checked) {
+                size *= 2.35 / Math.PI;
+            }
+            return size;
+        })();
+        const LINE_SIZE = (() => {
+            let size = (0.09 / 360) * FULL_WIDTH;
+            if (smallerDotsCheckbox.checked) {
+                size *= 1.5 / Math.PI;
+            }
+            return size;
+        })();
+
+        const processedData = data.map((point) => {
+            const tmpLat = Number(point.latitude.slice(0, -1));
+            const tmpLong = Number(point.longitude.slice(0, -1));
+            let lat = FULL_HEIGHT / 2 - ((tmpLat % 90) * (point.latitude.endsWith("S") ? -1 : 1) * FULL_HEIGHT) / 180;
+            let lng = FULL_WIDTH / 2 - ((tmpLong % 180) * (point.longitude.endsWith("E") ? -1 : 1) * FULL_WIDTH) / 360;
+
+            if (Math.floor(tmpLat / 90) % 2 === 1) lat -= FULL_HEIGHT / 2;
+            if (Math.floor(tmpLong / 180) % 2 === 1) lng -= FULL_WIDTH / 2;
+
+            return { ...point, latitude: lat, longitude: lng };
+        });
+
+        let [minLat, maxLat, minLng, maxLng] = processedData.reduce(
+            ([minL, maxL, minLn, maxLn], { latitude, longitude }) => [
+                Math.min(minL, latitude),
+                Math.max(maxL, latitude),
+                Math.min(minLn, longitude),
+                Math.max(maxLn, longitude),
+            ],
+            [Infinity, -Infinity, Infinity, -Infinity]
+        );
+
+        let top = minLat - (FULL_HEIGHT * 5) / 180;
+        let bottom = maxLat + (FULL_HEIGHT * 5) / 180;
+        let left = minLng - (FULL_WIDTH * 5) / 360;
+        let right = maxLng + (FULL_WIDTH * 5) / 360;
+
+        if (right - left < (FULL_HEIGHT * 45) / 180) {
+            const padding = ((FULL_HEIGHT * 45) / 180 - (right - left)) / 2;
+            left -= padding;
+            right += padding;
+        }
+
+        if (right - left < bottom - top) {
+            const padding = ((bottom - top) - (right - left)) / 2;
+            left -= padding;
+            right += padding;
+        }
+
+        if (bottom - top < (right - left) / 1.618033988749894) {
+            const padding = ((right - left) / 1.618033988749894 - (bottom - top)) / 2;
+            top -= padding;
+            bottom += padding;
+        }
+
+        left = Math.max(0, left);
+        right = Math.min(FULL_WIDTH, right);
+        top = Math.max(0, top);
+        bottom = Math.min(FULL_HEIGHT, bottom);
+
+        const width = right - left;
+        const height = bottom - top;
+
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.drawImage(
+            mapManager.blueMarble,
+            left, top,
+            width, height,
+            0, 0,
+            width, height
+        );
+
+        const adjustedData = processedData.map(p => ({
+            ...p,
+            latitude: p.latitude - top,
+            longitude: p.longitude - left
+        }));
+        const namedTracks = adjustedData.reduce((acc, point) => {
+            (acc[point.name] ??= []).push(point);
+            return acc;
+        }, {});
+
+        ctx.lineWidth = LINE_SIZE;
+        ctx.strokeStyle = "white";
+        ctx.beginPath();
+        Object.values(namedTracks).forEach(track => {
+            if (track.length < 1) return;
+            ctx.moveTo(track[0].longitude, track[0].latitude);
+            track.slice(1).forEach(p => ctx.lineTo(p.longitude, p.latitude));
+        });
+        ctx.stroke();
+
+        const pointGroups = adjustedData.reduce((map, point) => {
+            const key = `${catToColour(point.category, accessible)}|${point.shape}`;
+            if (!map.has(key)) {
+                map.set(key, []);
+            }
+            map.get(key).push(point);
+            return map;
+        }, new Map());
+
+        pointGroups.forEach((points, key) => {
+            const [color, shape] = key.split('|');
+            ctx.fillStyle = color;
+
+            points.forEach(({ longitude: x, latitude: y }) => {
+                ctx.beginPath();
+
+                switch (shape) {
+                    case 'triangle':
+                        const side = DOT_SIZE * Math.sqrt(3);
+                        const bis = side * (Math.sqrt(3) / 2);
+                        ctx.moveTo(x, y - (2 * bis) / 3);
+                        ctx.lineTo(x - side / 2, y + bis / 3);
+                        ctx.lineTo(x + side / 2, y + bis / 3);
+                        ctx.closePath();
+                        break;
+
+                    case 'square':
+                        const size = DOT_SIZE / Math.sqrt(2);
+                        ctx.rect(x - size, y - size, 2 * size, 2 * size);
+                        break;
+
+                    case 'circle':
+                        ctx.arc(x, y, DOT_SIZE, 0, 2 * Math.PI);
+                        break;
+                }
+
+                ctx.fill();
+            });
+        });
+
+        output.src = canvas.toDataURL();
+        loader.classList.add("hidden");
+        closeButton.classList.remove("hidden");
+        output.classList.remove("hidden");
+    }).catch((error) => {
+        console.error("Error generating map:", error);
+        loader.classList.add("hidden");
+    });
 }
