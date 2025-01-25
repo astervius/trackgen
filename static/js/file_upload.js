@@ -53,7 +53,6 @@ document.querySelector("#paste-upload").addEventListener("submit", async (e) => 
 	}
 
 	mapFromFile(data, type, accessible);
-	textarea.value = "";
 });
 
 const isValidUrl = (str) => {
