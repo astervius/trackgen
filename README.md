@@ -8,7 +8,7 @@ The simplest tropical cyclone track map generator. This is an enhanced fork of [
 - (Technically) more optimized code
 - Dark theme!
 - Support for STORMS database files
-- Full PWA support, letting you use this offline and without having to download a ~250MB map fileUpda
+- Full PWA support, letting you use this offline and without having to download a ~250MB map file
 
 ## Usage
 
