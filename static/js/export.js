@@ -1,10 +1,10 @@
 const SPEED_CONVERSIONS = {
     mph: {
-        kt: 1/1.151,  // 1 mph = 0.868976 knots
+        kt: 1 / 1.151,  // 1 mph = 0.868976 knots
         kph: 1.60934  // 1 mph = 1.60934 km/h
     },
     kph: {
-        kt: 1/1.852,  // 1 km/h = 0.539957 knots
+        kt: 1 / 1.852,  // 1 km/h = 0.539957 knots
         mph: 0.621371 // 1 km/h = 0.621371 mph
     },
     kt: {
@@ -22,7 +22,7 @@ const SUCCESS_MESSAGES = {
 // for speed conversions
 function convertSpeed(speed, fromUnit, toUnit = 'kph') {
     if (!speed || fromUnit === toUnit) return speed;
-    
+
     const conversion = SPEED_CONVERSIONS[fromUnit]?.[toUnit];
     return conversion ? Math.round(speed * conversion) : speed;
 }
@@ -37,22 +37,26 @@ function exportData() {
     try {
         const points = Array.from(document.querySelectorAll("#inputs .point"))
             .map(point => {
-                const latSelect = point.querySelector("select.latitude");
-                const lonSelect = point.querySelector("select.longitude");
-                const speedSelect = point.querySelector("select.speed");
+                const els = {
+                    latInput: point.querySelector("input.latitude"),
+                    lonInput: point.querySelector("input.longitude"),
+                    speedInput: point.querySelector("input.speed"),
+                    latSelect: point.querySelector("select.latitude"),
+                    lonSelect: point.querySelector("select.longitude"),
+                    speedSelect: point.querySelector("select.speed"),
+                    stageElement: point.querySelector(".stage"),
+                    nameElement: point.querySelector(".name")
+                };
 
-                const speed = Number(point.querySelector("input.speed").value);
-                const unit = getSelectedValue(speedSelect);
+                const speed = parseFloat(els.speedInput.value);
+                const unit = getSelectedValue(els.speedSelect, 'data-selected');
 
-                const stageElement = point.querySelector(".stage");
                 return {
-                    name: point.querySelector(".name").value?.trim(),
-                    latitude: point.querySelector("input.latitude").value +
-                        getSelectedValue(latSelect),
-                    longitude: point.querySelector("input.longitude").value +
-                        getSelectedValue(lonSelect),
+                    name: els.nameElement.value?.trim(),
+                    latitude: els.latInput.value + getSelectedValue(els.latSelect),
+                    longitude: els.lonInput.value + getSelectedValue(els.lonSelect),
                     speed: convertSpeed(speed, unit, 'kph'),
-                    stage: stageElement.value || stageElement.getAttribute("data-selected")
+                    stage: els.stageElement.value || els.stageElement.getAttribute("data-selected")
                 };
             });
 
