@@ -22,6 +22,11 @@ function convertSpeed(speed, fromUnit, toUnit = 'knots') {
     }
 }
 
+// to safely get the selected value
+function getSelectedValue(element, attribute = 'data-selected') {
+    return element?.getAttribute(attribute)?.replace('°', '') || '';
+}
+
 // ta-da! the main export function
 function exportData() {
     try {
