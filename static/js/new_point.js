@@ -1,92 +1,58 @@
-function handleSelects() {
-	document.addEventListener('change', (e) => {
-		if (e.target.matches('select')) {
-			e.target.setAttribute('data-selected', e.target.value);
-		}
+function handle_select(select) {
+	select.setAttribute("data-selected", select.value);
+	select.addEventListener("change", () => {
+		select.setAttribute("data-selected", select.value);
 	});
 }
+document.querySelectorAll("select").forEach(select => handle_select(select));
 
-function handleRemoval() {
-	document.addEventListener('click', (e) => {
-		const removeButton = e.target.closest('.remove');
-		if (!removeButton) return;
+function handle_removal(button) {
+	button.addEventListener("click", () => {
+		const point = button.parentElement.parentElement;
 
-		const point = removeButton.closest('.point');
-		const container = document.querySelector('#inputs');
-		const currentPoints = container.querySelectorAll('.point');
+		if (button.parentElement.parentElement.parentElement.children.length === 1) {
+			point.querySelectorAll("input").forEach(input => {
+				input.value = "";
+			});
 
-		if (currentPoints.length === 1) {
-			point.querySelectorAll('input, select').forEach(resetElement);
+			point.querySelectorAll("select").forEach(select => {
+				select.selectedIndex = 0;
+				select.setAttribute("data-selected", select.value);
+			});
 		} else {
-			container.removeChild(point);
+			point.remove();
 		}
-
-		// force reflow to trigger transition
-		void container.offsetHeight;
 	});
 }
+document.querySelectorAll("#inputs .remove").forEach(button => { handle_removal(button) })
 
-const pointTemplate = document.createElement('template');
-pointTemplate.innerHTML = document.querySelector('.point').outerHTML;
+document.querySelector("#new-point").addEventListener("click", () => {
+	const inputs = document.querySelector("#inputs");
+	let new_inputs = document.querySelectorAll(".point");
+	new_inputs = new_inputs[new_inputs.length - 1].cloneNode(true);
 
-// smart point creation!
-function createNewPoint() {
-	const lastPoint = document.querySelector('.point:last-child');
-	const clone = lastPoint?.cloneNode(true) || pointTemplate.content.cloneNode(true);
-
-	// preserve name and select values
-	clone.querySelector('.name').value = lastPoint?.querySelector('.name').value || '';
-	clone.querySelectorAll('select').forEach(select => {
-		const type = select.classList[0];
-		const originalValue = lastPoint?.querySelector(`select.${type}`)?.value ||
-			(type === 'latitude' ? 'N' : type === 'longitude' ? 'E' : 'kph');
-		select.value = originalValue;
-		select.setAttribute('data-selected', originalValue);
+	new_inputs.querySelectorAll("div:not(:first-child) > label > input").forEach(input => {
+		input.value = "";
 	});
 
-	// clear input values
-	clone.querySelectorAll('input[type="number"]').forEach(input => input.value = '');
-	return clone;
-}
+	const latitude_select = new_inputs.querySelector("select.latitude");
+	latitude_select.value = latitude_select.getAttribute("data-selected");
+	handle_select(latitude_select);
 
-// data import handling
-function populatePoint(data, element) {
-	element.querySelector('.name').value = data.name;
+	const longitude_select = new_inputs.querySelector("select.longitude");
+	longitude_select.value = longitude_select.getAttribute("data-selected");
+	handle_select(longitude_select);
 
-	const latValue = data.latitude.replace(/[NS]$/, '');
-	const latDir = data.latitude.endsWith('S') ? 'S' : 'N';
-	element.querySelector('input.latitude').value = latValue;
-	element.querySelector('select.latitude').value = latDir;
+	const speed_select = new_inputs.querySelector("select.speed");
+	speed_select.value = speed_select.getAttribute("data-selected");
+	handle_select(speed_select);
 
-	const lonValue = data.longitude.replace(/[EW]$/, '');
-	const lonDir = data.longitude.endsWith('W') ? 'W' : 'E';
-	element.querySelector('input.longitude').value = lonValue;
-	element.querySelector('select.longitude').value = lonDir;
+	const stage_select = new_inputs.querySelector(".stage");
+	stage_select.value = stage_select.getAttribute("data-selected");
+	handle_select(stage_select);
 
-	const speedUnit = element.querySelector('select.speed').value;
-	element.querySelector('input.speed').value =
-		Math.round(data.speed / (speedUnit === 'mph' ? 1.609 : 1));
+	handle_removal(new_inputs.querySelector(".remove"));
 
-	element.querySelector('.stage').value = data.stage;
-}
-
-document.querySelector('#new-point').addEventListener('click', () => {
-	const newPoint = createNewPoint();
-	document.querySelector('#inputs').appendChild(newPoint);
-	newPoint.scrollIntoView({ behavior: 'smooth' });
+	inputs.appendChild(new_inputs);
+	new_inputs.scrollIntoView();
 });
-
-// utilities
-function resetElement(el) {
-	if (el instanceof HTMLInputElement) el.value = '';
-	if (el instanceof HTMLSelectElement) el.selectedIndex = 0;
-}
-
-function init() {
-	handleSelects();
-	handleRemoval();
-	document.querySelectorAll('select').forEach(s =>
-		s.setAttribute('data-selected', s.value)
-	);
-}
-init();
