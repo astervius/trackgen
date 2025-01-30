@@ -1,16 +1,7 @@
-const SPEED_CONVERSIONS = {
-    mph: {
-        kt: 1 / 1.151,  // 1 mph = 0.868976 knots
-        kph: 1.60934  // 1 mph = 1.60934 km/h
-    },
-    kph: {
-        kt: 1 / 1.852,  // 1 km/h = 0.539957 knots
-        mph: 0.621371 // 1 km/h = 0.621371 mph
-    },
-    kt: {
-        mph: 1.151,   // 1 knot = 1.151 mph
-        kph: 1.852    // 1 knot = 1.852 km/h
-    }
+const SPEED_CONVERSION = {
+    mph: 1.151,
+    kph: 1.852,
+    kt: 1
 };
 
 const SUCCESS_MESSAGES = {
@@ -20,16 +11,15 @@ const SUCCESS_MESSAGES = {
 };
 
 // for speed conversions
-function convertSpeed(speed, fromUnit, toUnit = 'kph') {
-    if (!speed || fromUnit === toUnit) return speed;
+function convertSpeed(speed, fromUnit, toUnit = 'knots') {
+    if (!speed) return speed;
+    if (fromUnit === toUnit) return speed;
 
-    const conversion = SPEED_CONVERSIONS[fromUnit]?.[toUnit];
-    return conversion ? Math.round(speed * conversion) : speed;
-}
-
-// to safely get the selected value
-function getSelectedValue(element, attribute = 'data-selected') {
-    return element?.getAttribute(attribute)?.replace('°', '') || '';
+    if (toUnit === 'knots') {
+        return Math.round(speed / SPEED_CONVERSION[fromUnit]);
+    } else {
+        return Math.round(speed * SPEED_CONVERSION[toUnit]);
+    }
 }
 
 // ta-da! the main export function
@@ -55,7 +45,7 @@ function exportData() {
                     name: els.nameElement.value?.trim(),
                     latitude: els.latInput.value + getSelectedValue(els.latSelect),
                     longitude: els.lonInput.value + getSelectedValue(els.lonSelect),
-                    speed: convertSpeed(speed, unit, 'kph'),
+                    speed: convertSpeed(speed, unit),
                     stage: els.stageElement.value || els.stageElement.getAttribute("data-selected")
                 };
             });
