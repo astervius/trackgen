@@ -12,8 +12,7 @@ const SUCCESS_MESSAGES = {
 
 // for speed conversions
 function convertSpeed(speed, fromUnit, toUnit = 'knots') {
-    if (!speed) return speed;
-    if (fromUnit === toUnit) return speed;
+    if (!speed || fromUnit === toUnit) return speed;
 
     if (toUnit === 'knots') {
         return Math.round(speed / SPEED_CONVERSION[fromUnit]);
