@@ -213,8 +213,7 @@
 					title="Uses the new, accessible Wikipedia color scheme.">Use accessible colours</label><br />
 				<input type="checkbox" id="smaller-dots" /><label for="smaller-dots"
 					title="Uses smaller dot sizes on the generated maps. Intended for summary maps only.">Use
-					smaller dot sizes (summary maps
-					only)</label><br />
+					smaller dot sizes (summary maps only)</label><br />
 				<label for="map-selector"
 					title="Select map type (default is normal). Large and extra large maps are slower to generate.">
 					<ion-icon name="information-circle-outline" aria-hidden="true"
@@ -228,9 +227,15 @@
 						Extra large (slow)</option>
 					<option value="large-nxtgen"
 						title="Large version of the Blue Marble: Next Generation (July 2005) map.">Next Gen</option>
-					<option value="blkmar" title="A night light map, Black Marble (2016).">Black
-						Marble</option>
+					<option value="blkmar" title="A night light map, Black Marble (2016).">Black Marble</option>
 				</select>
+				<div id="custom-map-upload-section">
+					<label for="custom-map-upload" title="[EXPERIMENTAL] Upload a custom map of your choice.">
+						<ion-icon name="cloud-upload-outline" aria-hidden="true"
+							style="margin: .2rem 0; vertical-align: text-bottom"></ion-icon>
+						Upload custom map:</label>
+					<input type="file" id="custom-map-upload" accept="image/*">
+				</div>
 			</div>
 		</div>
 

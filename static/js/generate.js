@@ -53,6 +53,8 @@ class MapManager {
         this.blueMarble = new Image();
         this.blueMarble.crossOrigin = "anonymous";
 
+        this.customMapURLs = new Set();
+
         this.handleMapChange = this.handleMapChange.bind(this);
         this.handleButtonClick = this.handleButtonClick.bind(this);
         this.handleMapLoad = this.handleMapLoad.bind(this);
@@ -90,6 +92,43 @@ class MapManager {
 
         this.blueMarble.addEventListener('load', this.handleMapLoad);
         this.blueMarble.addEventListener('error', this.handleMapError);
+
+        const customUpload = document.getElementById('custom-map-upload');
+        if (customUpload) {
+            customUpload.addEventListener('change', (e) => this.handleCustomMapUpload(e));
+        }
+    }
+
+    handleCustomMapUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please upload a valid image file.');
+            event.target.value = '';
+            return;
+        }
+
+        this.clearCustomMaps();
+
+        const objectURL = URL.createObjectURL(file);
+        this.customMapURLs.add(objectURL);
+
+        const option = new Option(file.name, objectURL);
+        this.elements.mapSelector.add(option);
+        this.elements.mapSelector.value = objectURL;
+
+        this.config.mapUrls[objectURL] = objectURL;
+        this.loadMap(objectURL);
+    }
+
+    clearCustomMaps() {
+        Array.from(this.elements.mapSelector.options)
+            .filter(opt => this.customMapURLs.has(opt.value))
+            .forEach(opt => opt.remove());
+
+        this.customMapURLs.forEach(url => URL.revokeObjectURL(url));
+        this.customMapURLs.clear();
     }
 
     handleMapChange() {
@@ -106,6 +145,10 @@ class MapManager {
         this.state.loaded = true;
         this.hideLoader();
         this.updateStatus('success');
+
+        Array.from(this.elements.mapSelector.options)
+            .filter(opt => opt.value.startsWith('blob:') && !this.customMapURLs.has(opt.value))
+            .forEach(opt => opt.remove());
     }
 
     handleMapError(error) {
