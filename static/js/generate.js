@@ -14,6 +14,10 @@ function catToColour(cat = -999, accessible = true) {
 
 document.querySelector("#close").addEventListener("click", () => {
     document.querySelector("#image-container").classList.add("hidden");
+    if (mapManager) {
+        mapManager.hideLoader();
+        mapManager.state.loading = false;
+    }
 });
 
 class MapManager {
@@ -40,7 +44,9 @@ class MapManager {
 
         this.state = {
             loaded: false,
-            currentMap: null
+            loading: false,
+            currentMap: null,
+            mapCache: new Map()
         };
 
         this.elements = {
@@ -64,21 +70,7 @@ class MapManager {
     }
 
     init() {
-        this.preloadMaps();
-
         this.setupEventListeners();
-    }
-
-    preloadMaps() {
-        const preloadCache = new Map();
-
-        Object.entries(this.config.mapUrls).forEach(([key, url]) => {
-            const img = new Image();
-            img.src = url;
-            preloadCache.set(key, img);
-        });
-
-        this.preloadCache = preloadCache;
     }
 
     setupEventListeners() {
@@ -143,6 +135,7 @@ class MapManager {
 
     handleMapLoad() {
         this.state.loaded = true;
+        this.state.loading = false;
         this.hideLoader();
         this.updateStatus('success');
 
@@ -152,6 +145,7 @@ class MapManager {
     }
 
     handleMapError(error) {
+        this.state.loading = false;
         console.error('Yikes. Something went wrong.', error);
         this.hideLoader();
         this.updateStatus('error');
@@ -159,9 +153,28 @@ class MapManager {
 
     loadMap(size) {
         const mapUrl = this.getMapUrl(size);
+
         if (mapUrl !== this.state.currentMap) {
+            this.state.loaded = false;
+            this.state.loading = true;
             this.state.currentMap = mapUrl;
-            this.blueMarble.src = mapUrl;
+
+            if (this.state.mapCache.has(mapUrl)) {
+                this.blueMarble = this.state.mapCache.get(mapUrl);
+                this.state.loaded = true;
+                this.state.loading = false;
+                this.hideLoader();
+                this.updateStatus('success');
+            } else {
+                this.showLoader();
+                this.blueMarble = new Image();
+                this.blueMarble.crossOrigin = "anonymous";
+                this.blueMarble.addEventListener('load', this.handleMapLoad);
+                this.blueMarble.addEventListener('error', this.handleMapError);
+                this.blueMarble.src = mapUrl;
+
+                this.state.mapCache.set(mapUrl, this.blueMarble);
+            }
         }
     }
 
@@ -359,8 +372,15 @@ function createMap(data, accessible) {
         loader.classList.add("hidden");
         closeButton.classList.remove("hidden");
         output.classList.remove("hidden");
+
+        // if map generation is successful, hide the loader icon
+        mapManager.hideLoader();
+        mapManager.state.loading = false;
     }).catch((error) => {
         console.error("Error generating map:", error);
         loader.classList.add("hidden");
+
+        mapManager.hideLoader();
+        mapManager.state.loading = false;
     });
 }
