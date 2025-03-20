@@ -22,7 +22,8 @@ html {
 	background-color: var(--background-1);
 	height: 100vh;
 	width: 100vw;
-	overflow: hidden;
+	overflow-x: hidden;
+	overflow-y: auto;
 	background-image: url("../media/background.png");
 	background-size: 100vw 100vh;
 	background-repeat: no-repeat;
