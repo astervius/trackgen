@@ -485,12 +485,12 @@ ion-icon+span {
 	flex-direction: column;
 	gap: .5rem;
 	left: 0;
-	margin: .5rem 0;
+	margin: .1rem 0 .5rem;
 	max-height: 0;
 	overflow: hidden;
 	position: absolute;
 	right: 0;
-	transition: max-height 0.3s ease-out;
+	transition: max-height .2s ease-out, padding .2s ease-out;
 	z-index: 1;
 }
 
@@ -536,6 +536,74 @@ ion-icon+span {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	width: 100%;
+}
+
+#track-selector-container {
+	background: color-mix(in srgb, #fff 90%, var(--background-1));
+	border-radius: .5rem;
+	box-shadow: 0 0 10px rgba(0,0,0,0.3);
+	left: 50%;
+	opacity: 0;
+	padding: 1rem;
+	max-height: 80%;
+	max-width: 80%;
+	overflow-y: auto;
+	position: fixed;
+	top: 50%;
+	transform: translate(-50%, -55%);
+	transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+	z-index: 1000;
+}
+
+#track-selector-container.show {
+	opacity: 1;
+	transform: translate(-50%, -50%);
+}
+
+.track-option {
+	border: .1rem solid rgb(221, 221, 221);
+	border-radius: .3rem;
+	cursor: pointer;
+	display: flex;
+	font-family: 'Fira Sans', sans-serif;
+	justify-content: space-between;
+	margin: .3rem 0;
+	padding: .7rem;
+	transition: background-color 0.2s ease;
+}
+
+.track-option:hover {
+	background-color: rgba(255, 255, 255, 0.5);
+}
+
+.track-option button {
+	background: var(--foreground-2);
+	border: none;
+	border-radius: .3rem;
+	color: #fff;
+	cursor: pointer;
+	padding: .2rem .6rem;
+	transition: background-color 0.2s ease;
+}
+
+.track-option button:hover {
+	background: var(--foreground-1);
+}
+
+.selector-close-button {
+	background: #f44336;
+	border: none;
+	border-radius: .3rem;
+	color: #fff;
+	cursor: pointer;
+	margin-top: 1rem;
+	padding: .7rem;
+	width: 100%;
+	transition: background-color 0.2s ease;
+}
+
+.selector-close-button:hover {
+	background: #d32f2f;
 }
 
 @media screen and (max-width: 800px) {
