@@ -201,6 +201,10 @@ class MapManager {
 // Usage
 const mapManager = new MapManager();
 
+function normalizeLongitude(lng) {
+    return ((lng + 180) % 360 + 360) % 360 - 180;
+}
+
 function createMap(data, accessible) {
     const output = document.querySelector("#output");
     const loader = document.querySelector("#loader");
@@ -247,66 +251,102 @@ function createMap(data, accessible) {
         const processedData = data.map((point) => {
             const tmpLat = Number(point.latitude.slice(0, -1));
             const tmpLong = Number(point.longitude.slice(0, -1));
+            const normLong = normalizeLongitude(tmpLong * (point.longitude.endsWith("E") ? 1 : -1));
             let lat = FULL_HEIGHT / 2 - ((tmpLat % 90) * (point.latitude.endsWith("S") ? -1 : 1) * FULL_HEIGHT) / 180;
-            let lng = FULL_WIDTH / 2 - ((tmpLong % 180) * (point.longitude.endsWith("E") ? -1 : 1) * FULL_WIDTH) / 360;
+            let lng = (normLong + 180) / 360 * FULL_WIDTH;
 
             if (Math.floor(tmpLat / 90) % 2 === 1) lat -= FULL_HEIGHT / 2;
-            if (Math.floor(tmpLong / 180) % 2 === 1) lng -= FULL_WIDTH / 2;
 
-            return { ...point, latitude: lat, longitude: lng };
+            return { ...point, latitude: lat, longitude: lng, rawLongitude: normLong };
         });
 
-        let [minLat, maxLat, minLng, maxLng] = processedData.reduce(
-            ([minL, maxL, minLn, maxLn], { latitude, longitude }) => [
-                Math.min(minL, latitude),
-                Math.max(maxL, latitude),
-                Math.min(minLn, longitude),
-                Math.max(maxLn, longitude),
-            ],
-            [Infinity, -Infinity, Infinity, -Infinity]
-        );
+        let minLat = Infinity, maxLat = -Infinity;
+        let minRawLng = Infinity, maxRawLng = -Infinity;
+        processedData.forEach(({ latitude, rawLongitude }) => {
+            minLat = Math.min(minLat, latitude);
+            maxLat = Math.max(maxLat, latitude);
+            minRawLng = Math.min(minRawLng, rawLongitude);
+            maxRawLng = Math.max(maxRawLng, rawLongitude);
+        });
 
-        let top = minLat - (FULL_HEIGHT * 5) / 180;
-        let bottom = maxLat + (FULL_HEIGHT * 5) / 180;
-        let left = minLng - (FULL_WIDTH * 5) / 360;
-        let right = maxLng + (FULL_WIDTH * 5) / 360;
+        const lngSpan = maxRawLng - minRawLng;
+        const crossesIDL = lngSpan > 180;
 
-        if (right - left < (FULL_HEIGHT * 45) / 180) {
-            const padding = ((FULL_HEIGHT * 45) / 180 - (right - left)) / 2;
-            left -= padding;
-            right += padding;
+        let centerLng, left, right, top, bottom;
+        if (crossesIDL) {
+            let sumLng = 0;
+            processedData.forEach(p => {
+                let lng = p.rawLongitude;
+                if (lng - minRawLng > 180) lng -= 360;
+                sumLng += lng;
+            });
+            centerLng = normalizeLongitude(sumLng / processedData.length);
+            let centerX = (centerLng + 180) / 360 * FULL_WIDTH;
+
+            const maxLngDist = Math.max(
+                ...processedData.map(p => {
+                    let delta = normalizeLongitude(p.rawLongitude - centerLng);
+                    return Math.abs(delta) * FULL_WIDTH / 360;
+                }),
+                (FULL_HEIGHT * 45) / 180 / 2
+            );
+
+            left = centerX - maxLngDist - (FULL_WIDTH * 5) / 360;
+            right = centerX + maxLngDist + (FULL_WIDTH * 5) / 360;
+        } else {
+            centerLng = (minRawLng + maxRawLng) / 2;
+            left = (minRawLng + 180) / 360 * FULL_WIDTH - (FULL_WIDTH * 5) / 360;
+            right = (maxRawLng + 180) / 360 * FULL_WIDTH + (FULL_WIDTH * 5) / 360;
         }
 
-        if (right - left < bottom - top) {
-            const padding = ((bottom - top) - (right - left)) / 2;
+        top = minLat - (FULL_HEIGHT * 5) / 180;
+        bottom = maxLat + (FULL_HEIGHT * 5) / 180;
+
+        let width = right - left;
+        let height = bottom - top;
+
+        const minWidth = (FULL_HEIGHT * 45) / 180;
+        if (width < minWidth) {
+            const padding = (minWidth - width) / 2;
             left -= padding;
             right += padding;
+            width = right - left;
         }
 
-        if (bottom - top < (right - left) / 1.618033988749894) {
-            const padding = ((right - left) / 1.618033988749894 - (bottom - top)) / 2;
+        if (width < height) {
+            const padding = (height - width) / 2;
+            left -= padding;
+            right += padding;
+            width = right - left;
+        }
+
+        if (height < width / 1.618033988749894) {
+            const padding = (width / 1.618033988749894 - height) / 2;
             top -= padding;
             bottom += padding;
+            height = bottom - top;
         }
-
-        left = Math.max(0, left);
-        right = Math.min(FULL_WIDTH, right);
-        top = Math.max(0, top);
-        bottom = Math.min(FULL_HEIGHT, bottom);
-
-        const width = right - left;
-        const height = bottom - top;
 
         canvas.width = width;
         canvas.height = height;
 
-        ctx.drawImage(
-            mapManager.blueMarble,
-            left, top,
-            width, height,
-            0, 0,
-            width, height
-        );
+        const mapWidth = FULL_WIDTH;
+        let mapStartX = Math.floor(left / mapWidth) * mapWidth;
+        while (mapStartX > left - mapWidth) mapStartX -= mapWidth;
+        for (let offsetX = mapStartX; offsetX < right + mapWidth; offsetX += mapWidth) {
+            const srcX = (offsetX % mapWidth + mapWidth) % mapWidth;
+            const destX = offsetX - left;
+            const drawWidth = Math.min(mapWidth - srcX, right - offsetX);
+            if (drawWidth > 0 && destX < width) {
+                ctx.drawImage(
+                    mapManager.blueMarble,
+                    srcX, top,
+                    drawWidth, height,
+                    destX, 0,
+                    drawWidth, height
+                );
+            }
+        }
 
         const adjustedData = processedData.map(p => ({
             ...p,
@@ -320,13 +360,46 @@ function createMap(data, accessible) {
 
         ctx.lineWidth = LINE_SIZE;
         ctx.strokeStyle = "white";
-        ctx.beginPath();
         Object.values(namedTracks).forEach(track => {
             if (track.length < 1) return;
-            ctx.moveTo(track[0].longitude, track[0].latitude);
-            track.slice(1).forEach(p => ctx.lineTo(p.longitude, p.latitude));
+
+            track.forEach((point, index) => {
+                ctx.beginPath();
+                let prevX = point.longitude;
+                let prevY = point.latitude;
+
+                if (index === 0) {
+                    ctx.moveTo(prevX, prevY);
+                    return;
+                }
+
+                const prevPoint = track[index - 1];
+                let currX = prevX;
+                let currY = prevY;
+                let rawDx = normalizeLongitude(point.rawLongitude - prevPoint.rawLongitude);
+
+                if (Math.abs(rawDx) > 180) {
+                    rawDx = rawDx > 0 ? rawDx - 360 : rawDx + 360;
+                }
+
+                currX = prevPoint.longitude + (rawDx * FULL_WIDTH / 360);
+
+                ctx.moveTo(prevPoint.longitude, prevPoint.latitude);
+                ctx.lineTo(currX, currY);
+
+                if (crossesIDL) {
+                    if (currX < 0) {
+                        ctx.moveTo(prevPoint.longitude + FULL_WIDTH, prevPoint.latitude);
+                        ctx.lineTo(currX + FULL_WIDTH, currY);
+                    } else if (currX > width) {
+                        ctx.moveTo(prevPoint.longitude - FULL_WIDTH, prevPoint.latitude);
+                        ctx.lineTo(currX - FULL_WIDTH, currY);
+                    }
+                }
+
+                ctx.stroke();
+            });
         });
-        ctx.stroke();
 
         const pointGroups = adjustedData.reduce((map, point) => {
             const key = `${catToColour(point.category, accessible)}|${point.shape}`;
@@ -344,27 +417,32 @@ function createMap(data, accessible) {
             points.forEach(({ longitude: x, latitude: y }) => {
                 ctx.beginPath();
 
-                switch (shape) {
-                    case 'triangle':
-                        const side = DOT_SIZE * Math.sqrt(3);
-                        const bis = side * (Math.sqrt(3) / 2);
-                        ctx.moveTo(x, y - (2 * bis) / 3);
-                        ctx.lineTo(x - side / 2, y + bis / 3);
-                        ctx.lineTo(x + side / 2, y + bis / 3);
-                        ctx.closePath();
-                        break;
+                const drawShape = (drawX) => {
+                    switch (shape) {
+                        case 'triangle':
+                            const side = DOT_SIZE * Math.sqrt(3);
+                            const bis = side * (Math.sqrt(3) / 2);
+                            ctx.moveTo(drawX, y - (2 * bis) / 3);
+                            ctx.lineTo(drawX - side / 2, y + bis / 3);
+                            ctx.lineTo(drawX + side / 2, y + bis / 3);
+                            ctx.closePath();
+                            break;
+                        case 'square':
+                            const size = DOT_SIZE / Math.sqrt(2);
+                            ctx.rect(drawX - size, y - size, 2 * size, 2 * size);
+                            break;
+                        case 'circle':
+                            ctx.arc(drawX, y, DOT_SIZE, 0, 2 * Math.PI);
+                            break;
+                    }
+                    ctx.fill();
+                };
 
-                    case 'square':
-                        const size = DOT_SIZE / Math.sqrt(2);
-                        ctx.rect(x - size, y - size, 2 * size, 2 * size);
-                        break;
-
-                    case 'circle':
-                        ctx.arc(x, y, DOT_SIZE, 0, 2 * Math.PI);
-                        break;
+                drawShape(x);
+                if (crossesIDL && (x - FULL_WIDTH >= 0 || x + FULL_WIDTH < width)) {
+                    drawShape(x - FULL_WIDTH);
+                    drawShape(x + FULL_WIDTH);
                 }
-
-                ctx.fill();
             });
         });
 
