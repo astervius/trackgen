@@ -273,31 +273,27 @@ function createMap(data, accessible) {
         const crossesIDL = lngSpan > 180;
 
         let centerLng, left, right, top, bottom;
-        if (crossesIDL) {
-            let sumLng = 0;
-            processedData.forEach(p => {
-                let lng = p.rawLongitude;
-                if (lng - minRawLng > 180) lng -= 360;
-                sumLng += lng;
-            });
-            centerLng = normalizeLongitude(sumLng / processedData.length);
-            let centerX = (centerLng + 180) / 360 * FULL_WIDTH;
-
-            const maxLngDist = Math.max(
-                ...processedData.map(p => {
-                    let delta = normalizeLongitude(p.rawLongitude - centerLng);
-                    return Math.abs(delta) * FULL_WIDTH / 360;
-                }),
-                (FULL_HEIGHT * 45) / 180 / 2
-            );
-
-            left = centerX - maxLngDist - (FULL_WIDTH * 5) / 360;
-            right = centerX + maxLngDist + (FULL_WIDTH * 5) / 360;
-        } else {
-            centerLng = (minRawLng + maxRawLng) / 2;
-            left = (minRawLng + 180) / 360 * FULL_WIDTH - (FULL_WIDTH * 5) / 360;
-            right = (maxRawLng + 180) / 360 * FULL_WIDTH + (FULL_WIDTH * 5) / 360;
+        let easternmostLng = -Infinity, westernmostLng = Infinity;
+        processedData.forEach(p => {
+            let lng = p.rawLongitude;
+            if (crossesIDL && lng < 0) lng += 360; // shift western longitudes for comparison
+            easternmostLng = Math.max(easternmostLng, lng);
+            westernmostLng = Math.min(westernmostLng, lng);
+        });
+        if (crossesIDL && westernmostLng > easternmostLng) {
+            westernmostLng -= 360; // adjust back if westernmost was shifted
         }
+
+        centerLng = normalizeLongitude((easternmostLng + westernmostLng) / 2);
+        const centerX = (centerLng + 180) / 360 * FULL_WIDTH;
+
+        const halfLngDist = Math.max(
+            Math.abs(normalizeLongitude(easternmostLng - centerLng)),
+            Math.abs(normalizeLongitude(westernmostLng - centerLng))
+        ) * FULL_WIDTH / 360;
+        const paddingLng = (FULL_WIDTH * 5) / 360;
+        left = centerX - halfLngDist - paddingLng;
+        right = centerX + halfLngDist + paddingLng;
 
         top = minLat - (FULL_HEIGHT * 5) / 180;
         bottom = maxLat + (FULL_HEIGHT * 5) / 180;
