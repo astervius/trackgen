@@ -1,7 +1,7 @@
 function getHurdatShape(initials) {
     const i = initials.toUpperCase();
 
-    if (["TD", "TS", "HU", "TY", "ST"].includes(i)) {
+    if (["TD", "TS", "HU", "TY", "ST", "TC"].includes(i)) {
         return "circle";
     } else if (["SD", "SS"].includes(i)) {
         return "square";
