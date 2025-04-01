@@ -12,14 +12,6 @@ function catToColour(cat = -999, accessible = true) {
     return colorMap.get(cat) || "#C0C0C0";
 }
 
-document.querySelector("#close").addEventListener("click", () => {
-    document.querySelector("#image-container").classList.add("hidden");
-    if (mapManager) {
-        mapManager.hideLoader();
-        mapManager.state.loading = false;
-    }
-});
-
 class MapManager {
     constructor() {
         this.config = {
@@ -35,7 +27,11 @@ class MapManager {
                 loader: "#map-indicator .loader",
                 statusIcon: "#map-indicator ion-icon",
                 buttons: ".generate",
-                mapSelector: "#map-selector"
+                mapSelector: "#map-selector",
+                closeButton: "#close",
+                output: "#output",
+                mainLoader: "#loader",
+                imageContainer: "#image-container"
             },
             states: {
                 success: "#70c542"
@@ -46,15 +42,11 @@ class MapManager {
             loaded: false,
             loading: false,
             currentMap: null,
-            mapCache: new Map()
+            mapCache: new Map(),
+            domElements: {}
         };
 
-        this.elements = {
-            loader: document.querySelector(this.config.selectors.loader),
-            buttons: document.querySelectorAll(this.config.selectors.buttons),
-            mapSelector: document.getElementById(this.config.selectors.mapSelector.slice(1)),
-            statusIcon: document.querySelector(this.config.selectors.statusIcon)
-        };
+        this.cacheElements();
 
         this.blueMarble = new Image();
         this.blueMarble.crossOrigin = "anonymous";
@@ -65,8 +57,23 @@ class MapManager {
         this.handleButtonClick = this.handleButtonClick.bind(this);
         this.handleMapLoad = this.handleMapLoad.bind(this);
         this.handleMapError = this.handleMapError.bind(this);
+        this.handleCloseButton = this.handleCloseButton.bind(this);
 
         this.init();
+        this.showMapIndicator();
+    }
+
+    cacheElements() {
+        const selectors = this.config.selectors;
+        const elements = this.state.domElements;
+
+        for (const [key, selector] of Object.entries(selectors)) {
+            if (selector.startsWith('#')) {
+                elements[key] = document.getElementById(selector.slice(1));
+            } else {
+                elements[key] = document.querySelectorAll(selector);
+            }
+        }
     }
 
     init() {
@@ -74,9 +81,11 @@ class MapManager {
     }
 
     setupEventListeners() {
-        this.elements.mapSelector.addEventListener('change', this.handleMapChange);
+        const elements = this.state.domElements;
 
-        this.elements.buttons.forEach(button => {
+        elements.mapSelector.addEventListener('change', this.handleMapChange);
+
+        elements.buttons.forEach(button => {
             button.addEventListener("click", () => {
                 this.handleButtonClick(button.dataset.size);
             });
@@ -85,9 +94,19 @@ class MapManager {
         this.blueMarble.addEventListener('load', this.handleMapLoad);
         this.blueMarble.addEventListener('error', this.handleMapError);
 
+        elements.closeButton.addEventListener("click", this.handleCloseButton);
+
         const customUpload = document.getElementById('custom-map-upload');
         if (customUpload) {
             customUpload.addEventListener('change', (e) => this.handleCustomMapUpload(e));
+        }
+    }
+
+    handleCloseButton() {
+        this.state.domElements.imageContainer.classList.add("hidden");
+        if (mapManager) {
+            mapManager.hideLoader();
+            mapManager.state.loading = false;
         }
     }
 
@@ -107,15 +126,15 @@ class MapManager {
         this.customMapURLs.add(objectURL);
 
         const option = new Option(file.name, objectURL);
-        this.elements.mapSelector.add(option);
-        this.elements.mapSelector.value = objectURL;
+        this.state.domElements.mapSelector.add(option);
+        this.state.domElements.mapSelector.value = objectURL;
 
         this.config.mapUrls[objectURL] = objectURL;
         this.loadMap(objectURL);
     }
 
     clearCustomMaps() {
-        Array.from(this.elements.mapSelector.options)
+        Array.from(this.state.domElements.mapSelector.options)
             .filter(opt => this.customMapURLs.has(opt.value))
             .forEach(opt => opt.remove());
 
@@ -123,14 +142,22 @@ class MapManager {
         this.customMapURLs.clear();
     }
 
+    showMapIndicator() {
+        const mapIndicator = document.querySelector(this.config.selectors.mapIndicator);
+        if (mapIndicator) {
+            mapIndicator.style.display = "flex";
+        }
+    }
+
     handleMapChange() {
-        const size = document.querySelector(this.config.selectors.buttons).dataset.size;
+        const size = this.state.domElements.buttons[0].dataset.size;
         this.loadMap(size);
     }
 
     handleButtonClick(size) {
         this.loadMap(size);
         this.showLoader();
+        this.updateStatus('loading');
     }
 
     handleMapLoad() {
@@ -139,7 +166,7 @@ class MapManager {
         this.hideLoader();
         this.updateStatus('success');
 
-        Array.from(this.elements.mapSelector.options)
+        Array.from(this.state.domElements.mapSelector.options)
             .filter(opt => opt.value.startsWith('blob:') && !this.customMapURLs.has(opt.value))
             .forEach(opt => opt.remove());
     }
@@ -167,34 +194,64 @@ class MapManager {
                 this.updateStatus('success');
             } else {
                 this.showLoader();
-                this.blueMarble = new Image();
-                this.blueMarble.crossOrigin = "anonymous";
-                this.blueMarble.addEventListener('load', this.handleMapLoad);
-                this.blueMarble.addEventListener('error', this.handleMapError);
                 this.blueMarble.src = mapUrl;
-
                 this.state.mapCache.set(mapUrl, this.blueMarble);
             }
         }
     }
 
     getMapUrl(size) {
-        const { selectedIndex, options } = this.elements.mapSelector;
+        const { selectedIndex, options } = this.state.domElements.mapSelector;
         const mapType = options[selectedIndex].value;
         return this.config.mapUrls[mapType] || this.config.mapUrls[size];
     }
 
     showLoader() {
-        this.elements.loader.style.display = "block";
+        if (this.state.domElements.loader) {
+            this.state.domElements.loader.style.display = "block";
+        }
+
+        const mapIndicator = document.querySelector(this.config.selectors.mapIndicator);
+        if (mapIndicator) {
+            const loader = mapIndicator.querySelector('.loader');
+            if (loader) {
+                loader.style.display = "block";
+            }
+        }
     }
 
     hideLoader() {
-        this.elements.loader.style.display = "none";
+        if (this.state.domElements.loader) {
+            this.state.domElements.loader.style.display = "none";
+        }
+
+        const mapIndicator = document.querySelector(this.config.selectors.mapIndicator);
+        if (mapIndicator) {
+            const loader = mapIndicator.querySelector('.loader');
+            if (loader) {
+                loader.style.display = "none";
+            }
+        }
     }
 
     updateStatus(status) {
-        const color = status === 'success' ? this.config.states.success : 'red';
-        this.elements.statusIcon.style.color = color;
+        const statusIcon = document.querySelector(this.config.selectors.statusIcon);
+        if (statusIcon) {
+            if (status === 'loading') {
+                statusIcon.style.color = "#f1c40f";
+                if (statusIcon.getAttribute("name") !== "map-outline") {
+                    statusIcon.setAttribute("name", "map-outline");
+                }
+            } else if (status === 'success') {
+                statusIcon.style.color = this.config.states.success;
+                if (statusIcon.getAttribute("name") !== "map-outline") {
+                    statusIcon.setAttribute("name", "map-outline");
+                }
+            } else {
+                statusIcon.style.color = "red";
+                statusIcon.setAttribute("name", "alert-circle-outline");
+            }
+        }
     }
 }
 
@@ -206,10 +263,11 @@ function normalizeLongitude(lng) {
 }
 
 function createMap(data, accessible) {
-    const output = document.querySelector("#output");
-    const loader = document.querySelector("#loader");
-    const closeButton = document.querySelector("#close");
-    const imageContainer = document.querySelector("#image-container");
+    const elements = mapManager.state.domElements;
+    const output = elements.output;
+    const loader = elements.mainLoader;
+    const closeButton = elements.closeButton;
+    const imageContainer = elements.imageContainer;
     const smallerDotsCheckbox = document.getElementById("smaller-dots");
 
     closeButton.classList.add("hidden");
@@ -217,14 +275,38 @@ function createMap(data, accessible) {
     loader.classList.remove("hidden");
     imageContainer.classList.remove("hidden");
 
-    const canvas = document.createElement("canvas");
+    mapManager.showLoader();
+    mapManager.updateStatus('loading');
+
+    const canvas = mapManager.canvas || document.createElement("canvas");
+    if (!mapManager.canvas) mapManager.canvas = canvas;
     const ctx = canvas.getContext("2d");
+
+    const shapeDrawers = {
+        triangle: (ctx, x, y, dotSize) => {
+            const side = dotSize * Math.sqrt(3);
+            const bis = side * (Math.sqrt(3) / 2);
+            ctx.moveTo(x, y - (2 * bis) / 3);
+            ctx.lineTo(x - side / 2, y + bis / 3);
+            ctx.lineTo(x + side / 2, y + bis / 3);
+            ctx.closePath();
+        },
+        square: (ctx, x, y, dotSize) => {
+            const size = dotSize / Math.sqrt(2);
+            ctx.rect(x - size, y - size, 2 * size, 2 * size);
+        },
+        circle: (ctx, x, y, dotSize) => {
+            ctx.arc(x, y, dotSize, 0, 2 * Math.PI);
+        }
+    };
 
     new Promise((resolve) => {
         const checkLoaded = () => {
             if (mapManager.state.loaded) {
                 resolve();
             } else {
+                mapManager.showLoader();
+                mapManager.updateStatus('loading');
                 setTimeout(checkLoaded, 100);
             }
         };
@@ -233,20 +315,14 @@ function createMap(data, accessible) {
         const FULL_WIDTH = mapManager.blueMarble.width;
         const FULL_HEIGHT = mapManager.blueMarble.height;
 
-        const DOT_SIZE = (() => {
-            let size = (0.29890625 / 360) * FULL_WIDTH;
-            if (smallerDotsCheckbox.checked) {
-                size *= 2.35 / Math.PI;
-            }
-            return size;
-        })();
-        const LINE_SIZE = (() => {
-            let size = (0.09 / 360) * FULL_WIDTH;
-            if (smallerDotsCheckbox.checked) {
-                size *= 1.5 / Math.PI;
-            }
-            return size;
-        })();
+        const dotSizeFactor = smallerDotsCheckbox.checked ? 2.35 / Math.PI : 1;
+        const lineSizeFactor = smallerDotsCheckbox.checked ? 1.5 / Math.PI : 1;
+        const DOT_SIZE = (0.29890625 / 360) * FULL_WIDTH * dotSizeFactor;
+        const LINE_SIZE = (0.09 / 360) * FULL_WIDTH * lineSizeFactor;
+
+        let minLat = Infinity, maxLat = -Infinity;
+        let minRawLng = Infinity, maxRawLng = -Infinity;
+        let easternmostLng = -Infinity, westernmostLng = Infinity;
 
         const processedData = data.map((point) => {
             const tmpLat = Number(point.latitude.slice(0, -1));
@@ -257,29 +333,24 @@ function createMap(data, accessible) {
 
             if (Math.floor(tmpLat / 90) % 2 === 1) lat -= FULL_HEIGHT / 2;
 
-            return { ...point, latitude: lat, longitude: lng, rawLongitude: normLong };
-        });
+            minLat = Math.min(minLat, lat);
+            maxLat = Math.max(maxLat, lat);
+            minRawLng = Math.min(minRawLng, normLong);
+            maxRawLng = Math.max(maxRawLng, normLong);
 
-        let minLat = Infinity, maxLat = -Infinity;
-        let minRawLng = Infinity, maxRawLng = -Infinity;
-        processedData.forEach(({ latitude, rawLongitude }) => {
-            minLat = Math.min(minLat, latitude);
-            maxLat = Math.max(maxLat, latitude);
-            minRawLng = Math.min(minRawLng, rawLongitude);
-            maxRawLng = Math.max(maxRawLng, rawLongitude);
+            return { ...point, latitude: lat, longitude: lng, rawLongitude: normLong };
         });
 
         const lngSpan = maxRawLng - minRawLng;
         const crossesIDL = lngSpan > 180;
 
-        let centerLng, left, right, top, bottom;
-        let easternmostLng = -Infinity, westernmostLng = Infinity;
         processedData.forEach(p => {
             let lng = p.rawLongitude;
-            if (crossesIDL && lng < 0) lng += 360; // shift western longitudes for comparison
+            if (crossesIDL && lng < 0) lng += 360;
             easternmostLng = Math.max(easternmostLng, lng);
             westernmostLng = Math.min(westernmostLng, lng);
         });
+
         if (crossesIDL && westernmostLng > easternmostLng) {
             westernmostLng -= 360; // adjust back if westernmost was shifted
         }
@@ -292,11 +363,11 @@ function createMap(data, accessible) {
             Math.abs(normalizeLongitude(westernmostLng - centerLng))
         ) * FULL_WIDTH / 360;
         const paddingLng = (FULL_WIDTH * 5) / 360;
-        left = centerX - halfLngDist - paddingLng;
-        right = centerX + halfLngDist + paddingLng;
+        let left = centerX - halfLngDist - paddingLng;
+        let right = centerX + halfLngDist + paddingLng;
 
-        top = minLat - (FULL_HEIGHT * 5) / 180;
-        bottom = maxLat + (FULL_HEIGHT * 5) / 180;
+        let top = minLat - (FULL_HEIGHT * 5) / 180;
+        let bottom = maxLat + (FULL_HEIGHT * 5) / 180;
 
         let width = right - left;
         let height = bottom - top;
@@ -326,76 +397,37 @@ function createMap(data, accessible) {
         canvas.width = width;
         canvas.height = height;
 
-        const mapWidth = FULL_WIDTH;
-        let mapStartX = Math.floor(left / mapWidth) * mapWidth;
-        while (mapStartX > left - mapWidth) mapStartX -= mapWidth;
-        for (let offsetX = mapStartX; offsetX < right + mapWidth; offsetX += mapWidth) {
-            const srcX = (offsetX % mapWidth + mapWidth) % mapWidth;
-            const destX = offsetX - left;
-            const drawWidth = Math.min(mapWidth - srcX, right - offsetX);
-            if (drawWidth > 0 && destX < width) {
-                ctx.drawImage(
-                    mapManager.blueMarble,
-                    srcX, top,
-                    drawWidth, height,
-                    destX, 0,
-                    drawWidth, height
-                );
+        const drawMapTiles = () => {
+            const mapWidth = FULL_WIDTH;
+            let mapStartX = Math.floor(left / mapWidth) * mapWidth;
+            while (mapStartX > left - mapWidth) mapStartX -= mapWidth;
+
+            for (let offsetX = mapStartX; offsetX < right + mapWidth; offsetX += mapWidth) {
+                const srcX = (offsetX % mapWidth + mapWidth) % mapWidth;
+                const destX = offsetX - left;
+                const drawWidth = Math.min(mapWidth - srcX, right - offsetX);
+                if (drawWidth > 0 && destX < width) {
+                    ctx.drawImage(
+                        mapManager.blueMarble,
+                        srcX, top,
+                        drawWidth, height,
+                        destX, 0,
+                        drawWidth, height
+                    );
+                }
             }
-        }
+        };
 
         const adjustedData = processedData.map(p => ({
             ...p,
             latitude: p.latitude - top,
             longitude: p.longitude - left
         }));
+
         const namedTracks = adjustedData.reduce((acc, point) => {
             (acc[point.name] ??= []).push(point);
             return acc;
         }, {});
-
-        ctx.lineWidth = LINE_SIZE;
-        ctx.strokeStyle = "white";
-        Object.values(namedTracks).forEach(track => {
-            if (track.length < 1) return;
-
-            track.forEach((point, index) => {
-                ctx.beginPath();
-                let prevX = point.longitude;
-                let prevY = point.latitude;
-
-                if (index === 0) {
-                    ctx.moveTo(prevX, prevY);
-                    return;
-                }
-
-                const prevPoint = track[index - 1];
-                let currX = prevX;
-                let currY = prevY;
-                let rawDx = normalizeLongitude(point.rawLongitude - prevPoint.rawLongitude);
-
-                if (Math.abs(rawDx) > 180) {
-                    rawDx = rawDx > 0 ? rawDx - 360 : rawDx + 360;
-                }
-
-                currX = prevPoint.longitude + (rawDx * FULL_WIDTH / 360);
-
-                ctx.moveTo(prevPoint.longitude, prevPoint.latitude);
-                ctx.lineTo(currX, currY);
-
-                if (crossesIDL) {
-                    if (currX < 0) {
-                        ctx.moveTo(prevPoint.longitude + FULL_WIDTH, prevPoint.latitude);
-                        ctx.lineTo(currX + FULL_WIDTH, currY);
-                    } else if (currX > width) {
-                        ctx.moveTo(prevPoint.longitude - FULL_WIDTH, prevPoint.latitude);
-                        ctx.lineTo(currX - FULL_WIDTH, currY);
-                    }
-                }
-
-                ctx.stroke();
-            });
-        });
 
         const pointGroups = adjustedData.reduce((map, point) => {
             const key = `${catToColour(point.category, accessible)}|${point.shape}`;
@@ -406,41 +438,73 @@ function createMap(data, accessible) {
             return map;
         }, new Map());
 
-        pointGroups.forEach((points, key) => {
-            const [color, shape] = key.split('|');
-            ctx.fillStyle = color;
+        drawMapTiles();
 
-            points.forEach(({ longitude: x, latitude: y }) => {
-                ctx.beginPath();
+        const drawTracks = () => {
+            ctx.lineWidth = LINE_SIZE;
+            ctx.strokeStyle = "white";
 
-                const drawShape = (drawX) => {
-                    switch (shape) {
-                        case 'triangle':
-                            const side = DOT_SIZE * Math.sqrt(3);
-                            const bis = side * (Math.sqrt(3) / 2);
-                            ctx.moveTo(drawX, y - (2 * bis) / 3);
-                            ctx.lineTo(drawX - side / 2, y + bis / 3);
-                            ctx.lineTo(drawX + side / 2, y + bis / 3);
-                            ctx.closePath();
-                            break;
-                        case 'square':
-                            const size = DOT_SIZE / Math.sqrt(2);
-                            ctx.rect(drawX - size, y - size, 2 * size, 2 * size);
-                            break;
-                        case 'circle':
-                            ctx.arc(drawX, y, DOT_SIZE, 0, 2 * Math.PI);
-                            break;
+            Object.values(namedTracks).forEach(track => {
+                if (track.length < 1) return;
+
+                track.forEach((point, index) => {
+                    if (index === 0) return;
+
+                    ctx.beginPath();
+                    const prevPoint = track[index - 1];
+                    let currX = point.longitude;
+                    let currY = point.latitude;
+                    let rawDx = normalizeLongitude(point.rawLongitude - prevPoint.rawLongitude);
+
+                    if (Math.abs(rawDx) > 180) {
+                        rawDx = rawDx > 0 ? rawDx - 360 : rawDx + 360;
                     }
-                    ctx.fill();
-                };
 
-                drawShape(x);
-                if (crossesIDL && (x - FULL_WIDTH >= 0 || x + FULL_WIDTH < width)) {
-                    drawShape(x - FULL_WIDTH);
-                    drawShape(x + FULL_WIDTH);
-                }
+                    currX = prevPoint.longitude + (rawDx * FULL_WIDTH / 360);
+
+                    ctx.moveTo(prevPoint.longitude, prevPoint.latitude);
+                    ctx.lineTo(currX, currY);
+
+                    if (crossesIDL) {
+                        if (currX < 0) {
+                            ctx.moveTo(prevPoint.longitude + FULL_WIDTH, prevPoint.latitude);
+                            ctx.lineTo(currX + FULL_WIDTH, currY);
+                        } else if (currX > width) {
+                            ctx.moveTo(prevPoint.longitude - FULL_WIDTH, prevPoint.latitude);
+                            ctx.lineTo(currX - FULL_WIDTH, currY);
+                        }
+                    }
+
+                    ctx.stroke();
+                });
             });
-        });
+        };
+
+        const drawPoints = () => {
+            pointGroups.forEach((points, key) => {
+                const [color, shape] = key.split('|');
+                ctx.fillStyle = color;
+
+                const drawShapeFunc = shapeDrawers[shape] || shapeDrawers.circle;
+
+                points.forEach(({ longitude: x, latitude: y }) => {
+                    const drawPoint = (drawX) => {
+                        ctx.beginPath();
+                        drawShapeFunc(ctx, drawX, y, DOT_SIZE);
+                        ctx.fill();
+                    };
+
+                    drawPoint(x);
+                    if (crossesIDL && (x - FULL_WIDTH >= 0 || x + FULL_WIDTH < width)) {
+                        drawPoint(x - FULL_WIDTH);
+                        drawPoint(x + FULL_WIDTH);
+                    }
+                });
+            });
+        };
+
+        drawTracks();
+        drawPoints();
 
         output.src = canvas.toDataURL();
         loader.classList.add("hidden");
@@ -449,12 +513,14 @@ function createMap(data, accessible) {
 
         // if map generation is successful, hide the loader icon
         mapManager.hideLoader();
+        mapManager.updateStatus('success');
         mapManager.state.loading = false;
     }).catch((error) => {
         console.error("Error generating map:", error);
         loader.classList.add("hidden");
 
         mapManager.hideLoader();
+        mapManager.updateStatus('error');
         mapManager.state.loading = false;
     });
 }
