@@ -43,7 +43,8 @@ class MapManager {
             loading: false,
             currentMap: null,
             mapCache: new Map(),
-            domElements: {}
+            domElements: {},
+            loadCallbacks: []
         };
 
         this.cacheElements();
@@ -166,6 +167,9 @@ class MapManager {
         this.hideLoader();
         this.updateStatus('success');
 
+        this.state.loadCallbacks.forEach(callback => callback());
+        this.state.loadCallbacks = [];
+
         Array.from(this.state.domElements.mapSelector.options)
             .filter(opt => opt.value.startsWith('blob:') && !this.customMapURLs.has(opt.value))
             .forEach(opt => opt.remove());
@@ -253,6 +257,16 @@ class MapManager {
             }
         }
     }
+
+    onMapLoad() {
+        return new Promise((resolve) => {
+            if (this.state.loaded) {
+                resolve();
+            } else {
+                this.state.loadCallbacks.push(resolve);
+            }
+        });
+    }
 }
 
 // Usage
@@ -300,227 +314,218 @@ function createMap(data, accessible) {
         }
     };
 
-    new Promise((resolve) => {
-        const checkLoaded = () => {
-            if (mapManager.state.loaded) {
-                resolve();
-            } else {
-                mapManager.showLoader();
-                mapManager.updateStatus('loading');
-                setTimeout(checkLoaded, 100);
+    mapManager.onMapLoad()
+        .then(() => {
+            const FULL_WIDTH = mapManager.blueMarble.width;
+            const FULL_HEIGHT = mapManager.blueMarble.height;
+
+            const dotSizeFactor = smallerDotsCheckbox.checked ? 2.35 / Math.PI : 1;
+            const lineSizeFactor = smallerDotsCheckbox.checked ? 1.5 / Math.PI : 1;
+            const DOT_SIZE = (0.29890625 / 360) * FULL_WIDTH * dotSizeFactor;
+            const LINE_SIZE = (0.09 / 360) * FULL_WIDTH * lineSizeFactor;
+
+            let minLat = Infinity, maxLat = -Infinity;
+            let minRawLng = Infinity, maxRawLng = -Infinity;
+            let easternmostLng = -Infinity, westernmostLng = Infinity;
+
+            const processedData = data.map((point) => {
+                const tmpLat = Number(point.latitude.slice(0, -1));
+                const tmpLong = Number(point.longitude.slice(0, -1));
+                const normLong = normalizeLongitude(tmpLong * (point.longitude.endsWith("E") ? 1 : -1));
+                let lat = FULL_HEIGHT / 2 - ((tmpLat % 90) * (point.latitude.endsWith("S") ? -1 : 1) * FULL_HEIGHT) / 180;
+                let lng = (normLong + 180) / 360 * FULL_WIDTH;
+
+                if (Math.floor(tmpLat / 90) % 2 === 1) lat -= FULL_HEIGHT / 2;
+
+                minLat = Math.min(minLat, lat);
+                maxLat = Math.max(maxLat, lat);
+                minRawLng = Math.min(minRawLng, normLong);
+                maxRawLng = Math.max(maxRawLng, normLong);
+
+                return { ...point, latitude: lat, longitude: lng, rawLongitude: normLong };
+            });
+
+            const lngSpan = maxRawLng - minRawLng;
+            const crossesIDL = lngSpan > 180;
+
+            processedData.forEach(p => {
+                let lng = p.rawLongitude;
+                if (crossesIDL && lng < 0) lng += 360;
+                easternmostLng = Math.max(easternmostLng, lng);
+                westernmostLng = Math.min(westernmostLng, lng);
+            });
+
+            if (crossesIDL && westernmostLng > easternmostLng) {
+                westernmostLng -= 360; // adjust back if westernmost was shifted
             }
-        };
-        checkLoaded();
-    }).then(() => {
-        const FULL_WIDTH = mapManager.blueMarble.width;
-        const FULL_HEIGHT = mapManager.blueMarble.height;
 
-        const dotSizeFactor = smallerDotsCheckbox.checked ? 2.35 / Math.PI : 1;
-        const lineSizeFactor = smallerDotsCheckbox.checked ? 1.5 / Math.PI : 1;
-        const DOT_SIZE = (0.29890625 / 360) * FULL_WIDTH * dotSizeFactor;
-        const LINE_SIZE = (0.09 / 360) * FULL_WIDTH * lineSizeFactor;
+            const centerLng = normalizeLongitude((easternmostLng + westernmostLng) / 2);
+            const centerX = (centerLng + 180) / 360 * FULL_WIDTH;
 
-        let minLat = Infinity, maxLat = -Infinity;
-        let minRawLng = Infinity, maxRawLng = -Infinity;
-        let easternmostLng = -Infinity, westernmostLng = Infinity;
+            const halfLngDist = Math.max(
+                Math.abs(normalizeLongitude(easternmostLng - centerLng)),
+                Math.abs(normalizeLongitude(westernmostLng - centerLng))
+            ) * FULL_WIDTH / 360;
+            const paddingLng = (FULL_WIDTH * 5) / 360;
+            let left = centerX - halfLngDist - paddingLng;
+            let right = centerX + halfLngDist + paddingLng;
 
-        const processedData = data.map((point) => {
-            const tmpLat = Number(point.latitude.slice(0, -1));
-            const tmpLong = Number(point.longitude.slice(0, -1));
-            const normLong = normalizeLongitude(tmpLong * (point.longitude.endsWith("E") ? 1 : -1));
-            let lat = FULL_HEIGHT / 2 - ((tmpLat % 90) * (point.latitude.endsWith("S") ? -1 : 1) * FULL_HEIGHT) / 180;
-            let lng = (normLong + 180) / 360 * FULL_WIDTH;
+            let top = minLat - (FULL_HEIGHT * 5) / 180;
+            let bottom = maxLat + (FULL_HEIGHT * 5) / 180;
 
-            if (Math.floor(tmpLat / 90) % 2 === 1) lat -= FULL_HEIGHT / 2;
+            let width = right - left;
+            let height = bottom - top;
 
-            minLat = Math.min(minLat, lat);
-            maxLat = Math.max(maxLat, lat);
-            minRawLng = Math.min(minRawLng, normLong);
-            maxRawLng = Math.max(maxRawLng, normLong);
+            const minWidth = (FULL_HEIGHT * 45) / 180;
+            if (width < minWidth) {
+                const padding = (minWidth - width) / 2;
+                left -= padding;
+                right += padding;
+                width = right - left;
+            }
 
-            return { ...point, latitude: lat, longitude: lng, rawLongitude: normLong };
-        });
+            if (width < height) {
+                const padding = (height - width) / 2;
+                left -= padding;
+                right += padding;
+                width = right - left;
+            }
 
-        const lngSpan = maxRawLng - minRawLng;
-        const crossesIDL = lngSpan > 180;
+            if (height < width / 1.618033988749894) {
+                const padding = (width / 1.618033988749894 - height) / 2;
+                top -= padding;
+                bottom += padding;
+                height = bottom - top;
+            }
 
-        processedData.forEach(p => {
-            let lng = p.rawLongitude;
-            if (crossesIDL && lng < 0) lng += 360;
-            easternmostLng = Math.max(easternmostLng, lng);
-            westernmostLng = Math.min(westernmostLng, lng);
-        });
+            canvas.width = width;
+            canvas.height = height;
 
-        if (crossesIDL && westernmostLng > easternmostLng) {
-            westernmostLng -= 360; // adjust back if westernmost was shifted
-        }
+            const drawMapTiles = () => {
+                const mapWidth = FULL_WIDTH;
+                let mapStartX = Math.floor(left / mapWidth) * mapWidth;
+                while (mapStartX > left - mapWidth) mapStartX -= mapWidth;
 
-        centerLng = normalizeLongitude((easternmostLng + westernmostLng) / 2);
-        const centerX = (centerLng + 180) / 360 * FULL_WIDTH;
-
-        const halfLngDist = Math.max(
-            Math.abs(normalizeLongitude(easternmostLng - centerLng)),
-            Math.abs(normalizeLongitude(westernmostLng - centerLng))
-        ) * FULL_WIDTH / 360;
-        const paddingLng = (FULL_WIDTH * 5) / 360;
-        let left = centerX - halfLngDist - paddingLng;
-        let right = centerX + halfLngDist + paddingLng;
-
-        let top = minLat - (FULL_HEIGHT * 5) / 180;
-        let bottom = maxLat + (FULL_HEIGHT * 5) / 180;
-
-        let width = right - left;
-        let height = bottom - top;
-
-        const minWidth = (FULL_HEIGHT * 45) / 180;
-        if (width < minWidth) {
-            const padding = (minWidth - width) / 2;
-            left -= padding;
-            right += padding;
-            width = right - left;
-        }
-
-        if (width < height) {
-            const padding = (height - width) / 2;
-            left -= padding;
-            right += padding;
-            width = right - left;
-        }
-
-        if (height < width / 1.618033988749894) {
-            const padding = (width / 1.618033988749894 - height) / 2;
-            top -= padding;
-            bottom += padding;
-            height = bottom - top;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const drawMapTiles = () => {
-            const mapWidth = FULL_WIDTH;
-            let mapStartX = Math.floor(left / mapWidth) * mapWidth;
-            while (mapStartX > left - mapWidth) mapStartX -= mapWidth;
-
-            for (let offsetX = mapStartX; offsetX < right + mapWidth; offsetX += mapWidth) {
-                const srcX = (offsetX % mapWidth + mapWidth) % mapWidth;
-                const destX = offsetX - left;
-                const drawWidth = Math.min(mapWidth - srcX, right - offsetX);
-                if (drawWidth > 0 && destX < width) {
-                    ctx.drawImage(
-                        mapManager.blueMarble,
-                        srcX, top,
-                        drawWidth, height,
-                        destX, 0,
-                        drawWidth, height
-                    );
+                for (let offsetX = mapStartX; offsetX < right + mapWidth; offsetX += mapWidth) {
+                    const srcX = (offsetX % mapWidth + mapWidth) % mapWidth;
+                    const destX = offsetX - left;
+                    const drawWidth = Math.min(mapWidth - srcX, right - offsetX);
+                    if (drawWidth > 0 && destX < width) {
+                        ctx.drawImage(
+                            mapManager.blueMarble,
+                            srcX, top,
+                            drawWidth, height,
+                            destX, 0,
+                            drawWidth, height
+                        );
+                    }
                 }
-            }
-        };
+            };
 
-        const adjustedData = processedData.map(p => ({
-            ...p,
-            latitude: p.latitude - top,
-            longitude: p.longitude - left
-        }));
+            const adjustedData = processedData.map(p => ({
+                ...p,
+                latitude: p.latitude - top,
+                longitude: p.longitude - left
+            }));
 
-        const namedTracks = adjustedData.reduce((acc, point) => {
-            (acc[point.name] ??= []).push(point);
-            return acc;
-        }, {});
+            const namedTracks = adjustedData.reduce((acc, point) => {
+                (acc[point.name] ??= []).push(point);
+                return acc;
+            }, {});
 
-        const pointGroups = adjustedData.reduce((map, point) => {
-            const key = `${catToColour(point.category, accessible)}|${point.shape}`;
-            if (!map.has(key)) {
-                map.set(key, []);
-            }
-            map.get(key).push(point);
-            return map;
-        }, new Map());
+            const pointGroups = adjustedData.reduce((map, point) => {
+                const key = `${catToColour(point.category, accessible)}|${point.shape}`;
+                if (!map.has(key)) {
+                    map.set(key, []);
+                }
+                map.get(key).push(point);
+                return map;
+            }, new Map());
 
-        drawMapTiles();
+            drawMapTiles();
 
-        const drawTracks = () => {
-            ctx.lineWidth = LINE_SIZE;
-            ctx.strokeStyle = "white";
+            const drawTracks = () => {
+                ctx.lineWidth = LINE_SIZE;
+                ctx.strokeStyle = "white";
 
-            Object.values(namedTracks).forEach(track => {
-                if (track.length < 1) return;
+                Object.values(namedTracks).forEach(track => {
+                    if (track.length < 1) return;
 
-                track.forEach((point, index) => {
-                    if (index === 0) return;
+                    track.forEach((point, index) => {
+                        if (index === 0) return;
 
-                    ctx.beginPath();
-                    const prevPoint = track[index - 1];
-                    let currX = point.longitude;
-                    let currY = point.latitude;
-                    let rawDx = normalizeLongitude(point.rawLongitude - prevPoint.rawLongitude);
-
-                    if (Math.abs(rawDx) > 180) {
-                        rawDx = rawDx > 0 ? rawDx - 360 : rawDx + 360;
-                    }
-
-                    currX = prevPoint.longitude + (rawDx * FULL_WIDTH / 360);
-
-                    ctx.moveTo(prevPoint.longitude, prevPoint.latitude);
-                    ctx.lineTo(currX, currY);
-
-                    if (crossesIDL) {
-                        if (currX < 0) {
-                            ctx.moveTo(prevPoint.longitude + FULL_WIDTH, prevPoint.latitude);
-                            ctx.lineTo(currX + FULL_WIDTH, currY);
-                        } else if (currX > width) {
-                            ctx.moveTo(prevPoint.longitude - FULL_WIDTH, prevPoint.latitude);
-                            ctx.lineTo(currX - FULL_WIDTH, currY);
-                        }
-                    }
-
-                    ctx.stroke();
-                });
-            });
-        };
-
-        const drawPoints = () => {
-            pointGroups.forEach((points, key) => {
-                const [color, shape] = key.split('|');
-                ctx.fillStyle = color;
-
-                const drawShapeFunc = shapeDrawers[shape] || shapeDrawers.circle;
-
-                points.forEach(({ longitude: x, latitude: y }) => {
-                    const drawPoint = (drawX) => {
                         ctx.beginPath();
-                        drawShapeFunc(ctx, drawX, y, DOT_SIZE);
-                        ctx.fill();
-                    };
+                        const prevPoint = track[index - 1];
+                        let currX = point.longitude;
+                        let currY = point.latitude;
+                        let rawDx = normalizeLongitude(point.rawLongitude - prevPoint.rawLongitude);
 
-                    drawPoint(x);
-                    if (crossesIDL && (x - FULL_WIDTH >= 0 || x + FULL_WIDTH < width)) {
-                        drawPoint(x - FULL_WIDTH);
-                        drawPoint(x + FULL_WIDTH);
-                    }
+                        if (Math.abs(rawDx) > 180) {
+                            rawDx = rawDx > 0 ? rawDx - 360 : rawDx + 360;
+                        }
+
+                        currX = prevPoint.longitude + (rawDx * FULL_WIDTH / 360);
+
+                        ctx.moveTo(prevPoint.longitude, prevPoint.latitude);
+                        ctx.lineTo(currX, currY);
+
+                        if (crossesIDL) {
+                            if (currX < 0) {
+                                ctx.moveTo(prevPoint.longitude + FULL_WIDTH, prevPoint.latitude);
+                                ctx.lineTo(currX + FULL_WIDTH, currY);
+                            } else if (currX > width) {
+                                ctx.moveTo(prevPoint.longitude - FULL_WIDTH, prevPoint.latitude);
+                                ctx.lineTo(currX - FULL_WIDTH, currY);
+                            }
+                        }
+
+                        ctx.stroke();
+                    });
                 });
-            });
-        };
+            };
 
-        drawTracks();
-        drawPoints();
+            const drawPoints = () => {
+                pointGroups.forEach((points, key) => {
+                    const [color, shape] = key.split('|');
+                    ctx.fillStyle = color;
 
-        output.src = canvas.toDataURL();
-        loader.classList.add("hidden");
-        closeButton.classList.remove("hidden");
-        output.classList.remove("hidden");
+                    const drawShapeFunc = shapeDrawers[shape] || shapeDrawers.circle;
 
-        // if map generation is successful, hide the loader icon
-        mapManager.hideLoader();
-        mapManager.updateStatus('success');
-        mapManager.state.loading = false;
-    }).catch((error) => {
-        console.error("Error generating map:", error);
-        loader.classList.add("hidden");
+                    points.forEach(({ longitude: x, latitude: y }) => {
+                        const drawPoint = (drawX) => {
+                            ctx.beginPath();
+                            drawShapeFunc(ctx, drawX, y, DOT_SIZE);
+                            ctx.fill();
+                        };
 
-        mapManager.hideLoader();
-        mapManager.updateStatus('error');
-        mapManager.state.loading = false;
-    });
+                        drawPoint(x);
+                        if (crossesIDL && (x - FULL_WIDTH >= 0 || x + FULL_WIDTH < width)) {
+                            drawPoint(x - FULL_WIDTH);
+                            drawPoint(x + FULL_WIDTH);
+                        }
+                    });
+                });
+            };
+
+            drawTracks();
+            drawPoints();
+
+            output.src = canvas.toDataURL();
+            loader.classList.add("hidden");
+            closeButton.classList.remove("hidden");
+            output.classList.remove("hidden");
+
+            // if map generation is successful, hide the loader icon
+            mapManager.hideLoader();
+            mapManager.updateStatus('success');
+            mapManager.state.loading = false;
+        })
+        .catch((error) => {
+            console.error("Error generating map:", error);
+            loader.classList.add("hidden");
+
+            mapManager.hideLoader();
+            mapManager.updateStatus('error');
+            mapManager.state.loading = false;
+        });
 }
