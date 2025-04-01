@@ -44,7 +44,8 @@ class MapManager {
             currentMap: null,
             mapCache: new Map(),
             domElements: {},
-            loadCallbacks: []
+            loadCallbacks: [],
+            offscreenCanvasSupported: typeof OffscreenCanvas !== 'undefined'
         };
 
         this.cacheElements();
@@ -53,6 +54,12 @@ class MapManager {
         this.blueMarble.crossOrigin = "anonymous";
 
         this.customMapURLs = new Set();
+
+        if (this.state.offscreenCanvasSupported) {
+            this.canvas = new OffscreenCanvas(1, 1);
+        } else {
+            this.canvas = document.createElement("canvas");
+        }
 
         this.handleMapChange = this.handleMapChange.bind(this);
         this.handleButtonClick = this.handleButtonClick.bind(this);
@@ -267,6 +274,34 @@ class MapManager {
             }
         });
     }
+
+    getContext() {
+        return this.canvas.getContext("2d");
+    }
+
+    transferToImageBitmap() {
+        if (this.state.offscreenCanvasSupported) {
+            return this.canvas.transferToImageBitmap();
+        }
+        return null;
+    }
+
+    toDataURL() {
+        if (this.state.offscreenCanvasSupported) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = this.canvas.width;
+            tempCanvas.height = this.canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            const bitmap = this.transferToImageBitmap();
+            tempCtx.drawImage(bitmap, 0, 0);
+            bitmap.close();
+
+            return tempCanvas.toDataURL();
+        } else {
+            return this.canvas.toDataURL();
+        }
+    }
 }
 
 // Usage
@@ -292,9 +327,8 @@ function createMap(data, accessible) {
     mapManager.showLoader();
     mapManager.updateStatus('loading');
 
-    const canvas = mapManager.canvas || document.createElement("canvas");
-    if (!mapManager.canvas) mapManager.canvas = canvas;
-    const ctx = canvas.getContext("2d");
+    const canvas = mapManager.canvas;
+    const ctx = mapManager.getContext();
 
     const shapeDrawers = {
         triangle: (ctx, x, y, dotSize) => {
@@ -442,8 +476,6 @@ function createMap(data, accessible) {
                 return map;
             }, new Map());
 
-            drawMapTiles();
-
             const drawTracks = () => {
                 ctx.lineWidth = LINE_SIZE;
                 ctx.strokeStyle = "white";
@@ -507,10 +539,11 @@ function createMap(data, accessible) {
                 });
             };
 
+            drawMapTiles();
             drawTracks();
             drawPoints();
 
-            output.src = canvas.toDataURL();
+            output.src = mapManager.toDataURL();
             loader.classList.add("hidden");
             closeButton.classList.remove("hidden");
             output.classList.remove("hidden");
