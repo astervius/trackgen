@@ -319,7 +319,7 @@ function createMap(data, accessible) {
     const imageContainer = elements.imageContainer;
     const smallerDotsCheckbox = document.getElementById("smaller-dots");
 
-    closeButton.classList.add("hidden");
+    closeButton.classList.remove("hidden");
     output.classList.add("hidden");
     loader.classList.remove("hidden");
     imageContainer.classList.remove("hidden");
@@ -545,7 +545,6 @@ function createMap(data, accessible) {
 
             output.src = mapManager.toDataURL();
             loader.classList.add("hidden");
-            closeButton.classList.remove("hidden");
             output.classList.remove("hidden");
 
             // if map generation is successful, hide the loader icon
