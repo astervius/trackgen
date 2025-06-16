@@ -5,7 +5,7 @@ function getHurdatShape(initials) {
         return "circle";
     } else if (["SD", "SS"].includes(i)) {
         return "square";
-    } else if (["EX", "LO", "DB", "WV"].includes(i)) {
+    } else if (["EX", "LO", "DB", "WV", "MD"].includes(i)) {
         return "triangle";
     } else {
         console.error("Unknown HURDAT shape: " + i);
