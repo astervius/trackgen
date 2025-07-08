@@ -6,8 +6,18 @@ const SPEED_CATEGORY_MAP = new Map([
     [96, 2],
     [113, 3],
     [137, 4],
-    [157, 5],
-    [Number.MAX_SAFE_INTEGER, 5]
+    [164, 5],
+    [189, 6],
+    [208, 7],
+    [224, 8],
+    [242, 9],
+    [259, 10],
+    [347, 11],
+    [434, 12],
+    [648, 13],
+    [868, 14],
+    [1000, 15],
+    [Number.MAX_SAFE_INTEGER, 15]
 ]);
 
 const STAGE_SHAPE_MAP = {
