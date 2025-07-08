@@ -1,13 +1,23 @@
-function catToColour(cat = -999, accessible = true) {
+function catToColour(cat = -999, asterScale = true) {
     const colorMap = new Map([
         [-999, "#C0C0C0"],
-        [-2, accessible ? "#6ec1ea" : "#5EBAFF"],
-        [-1, accessible ? "#4dffff" : "#00FAF4"],
-        [1, accessible ? "#ffffD9" : "#FFFFCC"],
-        [2, accessible ? "#ffd98c" : "#FFE775"],
-        [3, accessible ? "#ff9e59" : "#FFC140"],
-        [4, accessible ? "#ff738a" : "#FF8F20"],
-        [5, accessible ? "#a188fc" : "#FF6060"],
+        [-2, asterScale ? "#01B3FF" : "#6DC1EA"],
+        [-1, asterScale ? "#06FF01" : "#4CFFFF"],
+        [1, asterScale ? "#FFF501" : "#FFFFD8"],
+        [2, asterScale ? "#FFC500" : "#FFD88C"],
+        [3, asterScale ? "#FF910E" : "#FF9E59"],
+        [4, asterScale ? "#FF4811" : "#FF7289"],
+        [5, asterScale ? "#FF27A5" : "#A087FC"],
+        [6, asterScale ? "#FF00F7" : "#7852FF"],
+        [7, asterScale ? "#F46DFA" : "#CF52FF"],
+        [8, asterScale ? "#C767FC" : "#FE26FF"],
+        [9, asterScale ? "#A984FF" : "#DF2FCB"],
+        [10, asterScale ? "#ACA2FF" : "#CA0085"],
+        [11, asterScale ? "#D600FF" : "#FF0076"],
+        [12, asterScale ? "#7A1AFF" : "#FF62D5"],
+        [13, asterScale ? "#2341D8" : "#E662FF"],
+        [14, asterScale ? "#052AB6" : "#9241E6"],
+        [15, asterScale ? "#000001" : "#2B22B8"],
     ]);
     return colorMap.get(cat) || "#C0C0C0";
 }
@@ -311,7 +321,7 @@ function normalizeLongitude(lng) {
     return ((lng + 180) % 360 + 360) % 360 - 180;
 }
 
-function createMap(data, accessible) {
+function createMap(data, asterScale) {
     const elements = mapManager.state.domElements;
     const output = elements.output;
     const loader = elements.mainLoader;
@@ -468,7 +478,7 @@ function createMap(data, accessible) {
             }, {});
 
             const pointGroups = adjustedData.reduce((map, point) => {
-                const key = `${catToColour(point.category, accessible)}|${point.shape}`;
+                const key = `${catToColour(point.category, asterScale)}|${point.shape}`;
                 if (!map.has(key)) {
                     map.set(key, []);
                 }
