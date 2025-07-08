@@ -4,9 +4,33 @@ const WIND_SPEED_THRESHOLDS = {
     C1: 83,
     C2: 96,
     C3: 113,
-    C4: 137
+    C4: 137,
+    C5: 164,
+    C6: 189,
+    C7: 208,
+    C8: 224,
+    C9: 242,
+    C10: 259,
+    HY: 347,
+    MG: 434,
+    IS: 648,
+    AR: 868
 };
 const MS_TO_KNOTS = 1.943844;
+
+/* 
+    [164, 5],
+    [189, 6],
+    [208, 7],
+    [224, 8],
+    [242, 9],
+    [259, 10],
+    [347, 11],
+    [434, 12],
+    [648, 13],
+    [868, 14],
+    [1000, 15],
+*/
 
 function windSpeedToCategory(speed) {
     const knots = speed * MS_TO_KNOTS;
@@ -14,7 +38,7 @@ function windSpeedToCategory(speed) {
     for (const [category, threshold] of Object.entries(WIND_SPEED_THRESHOLDS)) {
         if (knots < threshold) return category;
     }
-    return 'C5';
+    return 'US';
 }
 
 function getStormsShape(category) {
