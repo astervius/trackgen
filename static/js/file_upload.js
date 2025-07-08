@@ -1,5 +1,5 @@
 const domElements = {
-	accessible: document.querySelector("#accessible"),
+	asterScale: document.querySelector("#asterScale"),
 	fileFormat: document.querySelector("#file-format"),
 	pasteTextarea: document.querySelector("#paste-upload textarea"),
 	fileInput: document.querySelector("#file-input")
@@ -13,13 +13,13 @@ const parsers = {
 	storms: parseStorms
 };
 
-function mapFromFile(data, type, accessible) {
+function mapFromFile(data, type, asterScale) {
 	const parser = parsers[type.toLowerCase()];
 	if (!parser) return;
 
 	try {
 		const parsed = parser(data.trim());
-		createMap(parsed, accessible);
+		createMap(parsed, asterScale);
 	} catch (error) {
 		alert(`Jeepers! Error parsing ${type} data: ${error.message}.`);
 	}
@@ -27,7 +27,7 @@ function mapFromFile(data, type, accessible) {
 
 document.querySelector("#paste-upload").addEventListener("submit", async (e) => {
 	e.preventDefault();
-	const accessible = document.querySelector("#accessible").checked;
+	const asterScale = document.querySelector("#asterScale").checked;
 	const textarea = document.querySelector("#paste-upload textarea");
 	let data = textarea.value.trim();
 	const type = document.querySelector("#file-format").getAttribute("data-selected").toLowerCase();
@@ -52,7 +52,7 @@ document.querySelector("#paste-upload").addEventListener("submit", async (e) => 
 		}
 	}
 
-	mapFromFile(data, type, accessible);
+	mapFromFile(data, type, asterScale);
 });
 
 const isValidUrl = (str) => {
@@ -89,7 +89,7 @@ domElements.fileInput.addEventListener("change", (e) => {
 		try {
 			mapFromFile(evt.target.result,
 				domElements.fileFormat.getAttribute("data-selected").toLowerCase(),
-				domElements.accessible.checked
+				domElements.asterScale.checked
 			);
 		} finally {
 			domElements.fileInput.value = "";
