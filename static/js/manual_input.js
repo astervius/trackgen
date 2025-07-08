@@ -86,6 +86,6 @@ document.querySelector("form").addEventListener("submit", (e) => {
         return;
     }
 
-    const accessible = document.querySelector("#accessible").checked;
-    createMap(data, accessible);
+    const asterScale = document.querySelector("#asterScale").checked;
+    createMap(data, asterScale);
 });
