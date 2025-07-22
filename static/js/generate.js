@@ -14,10 +14,10 @@ function catToColour(cat = -999, asterScale = true) {
         [9, asterScale ? "#A984FF" : "#DF2FCB"],
         [10, asterScale ? "#ACA2FF" : "#CA0085"],
         [11, asterScale ? "#D600FF" : "#FF0076"],
-        [12, asterScale ? "#7A1AFF" : "#FF62D5"],
-        [13, asterScale ? "#2341D8" : "#E662FF"],
-        [14, asterScale ? "#052AB6" : "#9241E6"],
-        [15, asterScale ? "#000001" : "#2B22B8"],
+        [12, asterScale ? "#7A1AFF" : "#FF38CA"],
+        [13, asterScale ? "#2341D8" : "#AF24E4"],
+        [14, asterScale ? "#052AB6" : "#651CBE"],
+        [15, asterScale ? "#000001" : "#344BBD"],
     ]);
     return colorMap.get(cat) || "#C0C0C0";
 }
