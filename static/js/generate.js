@@ -1,23 +1,23 @@
-function catToColour(cat = -999, asterScale = true) {
+function catToColour(cat = -999, asterScale = true, novaScale = true) {
     const colorMap = new Map([
         [-999, "#C0C0C0"],
-        [-2, asterScale ? "#01B3FF" : "#6DC1EA"],
-        [-1, asterScale ? "#06FF01" : "#4CFFFF"],
-        [1, asterScale ? "#FFF501" : "#FFFFD8"],
-        [2, asterScale ? "#FFC500" : "#FFD88C"],
-        [3, asterScale ? "#FF910E" : "#FF9E59"],
-        [4, asterScale ? "#FF4811" : "#FF7289"],
-        [5, asterScale ? "#FF27A5" : "#A087FC"],
-        [6, asterScale ? "#FF00F7" : "#7852FF"],
-        [7, asterScale ? "#F46DFA" : "#CF52FF"],
-        [8, asterScale ? "#C767FC" : "#FE26FF"],
-        [9, asterScale ? "#A984FF" : "#DF2FCB"],
-        [10, asterScale ? "#ACA2FF" : "#CA0085"],
-        [11, asterScale ? "#D600FF" : "#FF0031"],
-        [12, asterScale ? "#7A1AFF" : "#B30000"],
-        [13, asterScale ? "#2341D8" : "#AD0DC3"],
-        [14, asterScale ? "#052AB6" : "#6B17D3"],
-        [15, asterScale ? "#000001" : "#304DDB"],
+        [-2, asterScale ? "#01B3FF" : novaScale ? "#4477FA" : "#6DC1EA"],
+        [-1, asterScale ? "#06FF01" : novaScale ? "#00F9BD" : "#4CFFFF"],
+        [1, asterScale ? "#FFF501" : novaScale ? "#FFFF87" : "#FFFFD8"],
+        [2, asterScale ? "#FFC500" : novaScale ? "#FFDB59" : "#FFD88C"],
+        [3, asterScale ? "#FF910E" : novaScale ? "#FF9B3F" : "#FF9E59"],
+        [4, asterScale ? "#FF4811" : novaScale ? "#FF5621" : "#FF7289"],
+        [5, asterScale ? "#FF27A5" : novaScale ? "#FF3F6D" : "#A087FC"],
+        [6, asterScale ? "#FF00F7" : novaScale ? "#FF3F9B" : "#7852FF"],
+        [7, asterScale ? "#F46DFA" : novaScale ? "#FF3FD5" : "#CF52FF"],
+        [8, asterScale ? "#C767FC" : novaScale ? "#F03FFF" : "#FE26FF"],
+        [9, asterScale ? "#A984FF" : novaScale ? "#B63FFF" : "#DF2FCB"],
+        [10, asterScale ? "#ACA2FF" : novaScale ? "#933FFF" : "#CA0085"],
+        [11, asterScale ? "#D600FF" : novaScale ? "#FF99FB" : "#FF0031"],
+        [12, asterScale ? "#7A1AFF" : novaScale ? "#FF7CAB" : "#B30000"],
+        [13, asterScale ? "#2341D8" : novaScale ? "#008C38" : "#AD0DC3"],
+        [14, asterScale ? "#052AB6" : novaScale ? "#CEA30C" : "#6B17D3"],
+        [15, asterScale ? "#000001" : novaScale ? "#000001" : "#304DDB"],
     ]);
     return colorMap.get(cat) || "#C0C0C0";
 }
@@ -321,7 +321,7 @@ function normalizeLongitude(lng) {
     return ((lng + 180) % 360 + 360) % 360 - 180;
 }
 
-function createMap(data, asterScale) {
+function createMap(data, asterScale, novaScale) {
     const elements = mapManager.state.domElements;
     const output = elements.output;
     const loader = elements.mainLoader;
@@ -478,7 +478,7 @@ function createMap(data, asterScale) {
             }, {});
 
             const pointGroups = adjustedData.reduce((map, point) => {
-                const key = `${catToColour(point.category, asterScale)}|${point.shape}`;
+                const key = `${catToColour(point.category, asterScale, novaScale)}|${point.shape}`;
                 if (!map.has(key)) {
                     map.set(key, []);
                 }
